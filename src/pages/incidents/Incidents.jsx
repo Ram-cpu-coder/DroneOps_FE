@@ -1,12 +1,17 @@
-import { AlertTriangle, ShieldCheck, UserRoundCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, Plus, ShieldCheck, UserRoundCheck } from "lucide-react";
+import ActionButton from "../../components/common/ActionButton";
 import DataTable from "../../components/common/DataTable";
 import MetricCard from "../../components/common/MetricCard";
 import SectionHeader from "../../components/common/SectionHeader";
 import StatusBadge from "../../components/common/StatusBadge";
 import { incidents } from "../../data/droneOpsData";
 import { useFleetSearch } from "../../hooks/useFleetSearch";
+import IncidentForm from "./components/IncidentForm";
 
 const Incidents = ({ searchValue }) => {
+  const [showIncidentForm, setShowIncidentForm] = useState(false);
+  const incidentFormRef = useRef(null);
   const filteredIncidents = useFleetSearch(incidents, searchValue);
   const highCount = incidents.filter((incident) => incident.severity === "High").length;
 
@@ -20,6 +25,20 @@ const Incidents = ({ searchValue }) => {
     { key: "time", label: "Reported" }
   ];
 
+  useEffect(() => {
+    if (!showIncidentForm || !incidentFormRef.current) return;
+    incidentFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    incidentFormRef.current.focus({ preventScroll: true });
+  }, [showIncidentForm]);
+
+  const handleLogIncidentClick = () => {
+    if (showIncidentForm) {
+      setShowIncidentForm(false);
+      return;
+    }
+    setShowIncidentForm(true);
+  };
+
   return (
     <section className="page-stack">
       <div className="stats-grid three">
@@ -31,9 +50,23 @@ const Incidents = ({ searchValue }) => {
         <SectionHeader
           title="Incident Register"
           description="Actionable operational incidents with ownership, severity, source, and latest status."
+          action={
+            <ActionButton
+              icon={Plus}
+              variant="primary"
+              onClick={handleLogIncidentClick}
+            >
+              {showIncidentForm ? "Hide Form" : "Log Incident"}
+            </ActionButton>
+          }
         />
         <DataTable columns={columns} rows={filteredIncidents} getRowKey={(incident) => incident.id} />
       </div>
+      {showIncidentForm && (
+        <div ref={incidentFormRef} className="form-scroll-anchor" tabIndex={-1}>
+          <IncidentForm onCancel={() => setShowIncidentForm(false)} />
+        </div>
+      )}
       <div className="detail-grid">
         {filteredIncidents.map((incident) => (
           <article className="detail-card" key={incident.id}>
