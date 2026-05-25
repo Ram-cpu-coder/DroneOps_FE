@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { CalendarClock, Plus, Route } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 import DataTable from "../../components/common/DataTable";
@@ -7,8 +8,11 @@ import SectionHeader from "../../components/common/SectionHeader";
 import StatusBadge from "../../components/common/StatusBadge";
 import { missions } from "../../data/droneOpsData";
 import { useFleetSearch } from "../../hooks/useFleetSearch";
+import MissionForm from "./components/MissionForm";
 
 const Missions = ({ searchValue }) => {
+  const [showMissionForm, setShowMissionForm] = useState(false);
+  const missionFormRef = useRef(null);
   const filteredMissions = useFleetSearch(missions, searchValue);
   const activeMissions = missions.filter((mission) => mission.status === "In Progress").length;
 
@@ -24,6 +28,20 @@ const Missions = ({ searchValue }) => {
     { key: "eta", label: "ETA" }
   ];
 
+  useEffect(() => {
+    if (!showMissionForm || !missionFormRef.current) return;
+    missionFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    missionFormRef.current.focus({ preventScroll: true });
+  }, [showMissionForm]);
+
+  const handleCreateMissionClick = () => {
+    if (showMissionForm) {
+      setShowMissionForm(false);
+      return;
+    }
+    setShowMissionForm(true);
+  };
+
   return (
     <section className="page-stack">
       <div className="stats-grid three">
@@ -35,10 +53,23 @@ const Missions = ({ searchValue }) => {
         <SectionHeader
           title="Mission Control"
           description="Plan, track, and audit drone missions from assignment through completion."
-          action={<ActionButton icon={Plus} variant="primary">Create Mission</ActionButton>}
+          action={
+            <ActionButton
+              icon={Plus}
+              variant="primary"
+              onClick={handleCreateMissionClick}
+            >
+              {showMissionForm ? "Hide Form" : "Create Mission"}
+            </ActionButton>
+          }
         />
         <DataTable columns={columns} rows={filteredMissions} getRowKey={(mission) => mission.id} />
       </div>
+      {showMissionForm && (
+        <div ref={missionFormRef} className="form-scroll-anchor" tabIndex={-1}>
+          <MissionForm onCancel={() => setShowMissionForm(false)} />
+        </div>
+      )}
     </section>
   );
 };

@@ -10,7 +10,7 @@ import {
   signupRequested,
   verificationCompleted
 } from "./features/auth/authSlice";
-import { routeChanged, searchChanged, uiReset } from "./features/ui/uiSlice";
+import { routeChanged, searchChanged, themeModeChanged, uiReset } from "./features/ui/uiSlice";
 import AuthShell from "./pages/auth/AuthShell";
 import Login from "./pages/auth/Login";
 import PasswordReset from "./pages/auth/PasswordReset";
@@ -21,7 +21,7 @@ import { appRoutes } from "./routes/appRoutes";
 const App = () => {
   const dispatch = useDispatch();
   const { session, authView, pendingVerification, error, passwordReset } = useSelector((state) => state.auth);
-  const { activeRoute, globalSearch } = useSelector((state) => state.ui);
+  const { activeRoute, globalSearch, themeMode } = useSelector((state) => state.ui);
 
   const accessibleRoutes = useMemo(() => {
     if (!session?.user) return [];
@@ -34,6 +34,11 @@ const App = () => {
       dispatch(routeChanged(firstAccessibleRoute(session.user, appRoutes).id));
     }
   }, [accessibleRoutes, activeRoute, dispatch, session]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = themeMode;
+    window.localStorage.setItem("droneops-theme-mode", themeMode);
+  }, [themeMode]);
 
   const ActivePage = useMemo(() => {
     return accessibleRoutes.find((route) => route.id === activeRoute)?.component ?? accessibleRoutes[0]?.component;
@@ -97,8 +102,10 @@ const App = () => {
       routes={accessibleRoutes}
       user={session.user}
       searchValue={globalSearch}
+      themeMode={themeMode}
       onNavigate={(routeId) => dispatch(routeChanged(routeId))}
       onSearchChange={(value) => dispatch(searchChanged(value))}
+      onThemeModeChange={(mode) => dispatch(themeModeChanged(mode))}
       onLogout={handleLogout}
     >
       {ActivePage && (

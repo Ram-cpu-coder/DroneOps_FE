@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plane, Plus, Wrench } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 import BatteryMeter from "../../components/common/BatteryMeter";
@@ -13,6 +13,7 @@ import RegisterDroneForm from "./components/RegisterDroneForm";
 
 const Fleet = ({ searchValue }) => {
   const [showRegisterDrone, setShowRegisterDrone] = useState(false);
+  const registerFormRef = useRef(null);
   const filteredDrones = useFleetSearch(drones, searchValue);
   const activeCount = drones.filter((drone) => drone.status === "AVAILABLE").length;
   const maintenanceCount = drones.filter((drone) => drone.status === "MAINTENANCE").length;
@@ -29,6 +30,20 @@ const Fleet = ({ searchValue }) => {
     { key: "nextMaintenance", label: "Next Service" }
   ];
 
+  useEffect(() => {
+    if (!showRegisterDrone || !registerFormRef.current) return;
+    registerFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    registerFormRef.current.focus({ preventScroll: true });
+  }, [showRegisterDrone]);
+
+  const handleRegisterDroneClick = () => {
+    if (showRegisterDrone) {
+      setShowRegisterDrone(false);
+      return;
+    }
+    setShowRegisterDrone(true);
+  };
+
   return (
     <section className="page-stack">
       <div className="stats-grid three">
@@ -37,7 +52,11 @@ const Fleet = ({ searchValue }) => {
         <MetricCard label="Maintenance" value={maintenanceCount} delta="Requires engineer review" icon={Wrench} tone="red" />
       </div>
 
-      {showRegisterDrone && <RegisterDroneForm />}
+      {showRegisterDrone && (
+        <div ref={registerFormRef} className="form-scroll-anchor" tabIndex={-1}>
+          <RegisterDroneForm />
+        </div>
+      )}
 
       <div className="panel">
         <SectionHeader
@@ -47,7 +66,7 @@ const Fleet = ({ searchValue }) => {
             <ActionButton
               icon={Plus}
               variant="primary"
-              onClick={() => setShowRegisterDrone((current) => !current)}
+              onClick={handleRegisterDroneClick}
             >
               {showRegisterDrone ? "Hide Form" : "Register Drone"}
             </ActionButton>

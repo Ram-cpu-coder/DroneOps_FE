@@ -1,6 +1,12 @@
-import { Bell, Search, UserRound } from "lucide-react";
+import { Bell, Moon, Monitor, Search, Sun, UserRound } from "lucide-react";
 
-const TopBar = ({ title, description, user, searchValue, onSearchChange }) => {
+const themeOptions = [
+  { id: "default", label: "Default", icon: Monitor },
+  { id: "dark", label: "Dark", icon: Moon },
+  { id: "light", label: "Light", icon: Sun }
+];
+
+const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChange, onThemeModeChange }) => {
   return (
     <header className="topbar">
       <div>
@@ -20,6 +26,25 @@ const TopBar = ({ title, description, user, searchValue, onSearchChange }) => {
         <button className="icon-button" type="button" aria-label="Notifications">
           <Bell size={19} />
         </button>
+        <div className="theme-switcher" aria-label="Theme mode">
+          {themeOptions.map((option) => {
+            const Icon = option.icon;
+            const isActive = themeMode === option.id;
+            return (
+              <button
+                key={option.id}
+                className={isActive ? "active" : ""}
+                type="button"
+                onClick={() => onThemeModeChange(option.id)}
+                aria-pressed={isActive}
+                title={`${option.label} mode`}
+              >
+                <Icon size={16} />
+                <span>{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
         <div className="operator">
           <UserRound size={18} />
           <span>{user?.roleLabel ?? "Ops Lead"}</span>
