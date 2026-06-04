@@ -3,7 +3,7 @@ export const userRoles = [
     id: "operations_manager",
     label: "Operations Manager",
     summary: "Manages missions, assigns drones and pilots, monitors operations, and views fleet status.",
-    permissions: ["dashboard", "fleet", "missions", "incidents", "reports"]
+    permissions: ["dashboard", "fleet", "missions", "missions:manage", "incidents", "reports"]
   },
   {
     id: "remote_pilot",
@@ -21,7 +21,7 @@ export const userRoles = [
     id: "safety_officer",
     label: "Safety Officer",
     summary: "Reviews incidents, monitors geofence breaches, accesses hazards, and manages JSA workflows.",
-    permissions: ["dashboard", "missions", "incidents", "reports"]
+    permissions: ["dashboard", "incidents", "reports"]
   },
   {
     id: "compliance_officer",
@@ -33,7 +33,7 @@ export const userRoles = [
     id: "system_administrator",
     label: "System Administrator",
     summary: "Manages users, configures platform settings, and accesses all modules.",
-    permissions: ["dashboard", "fleet", "missions", "incidents", "reports", "settings", "users"]
+    permissions: ["dashboard", "fleet", "missions", "missions:manage", "incidents", "reports", "settings", "users", "*"]
   }
 ];
 

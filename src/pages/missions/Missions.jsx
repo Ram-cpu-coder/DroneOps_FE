@@ -7,14 +7,16 @@ import ProgressBar from "../../components/common/ProgressBar";
 import SectionHeader from "../../components/common/SectionHeader";
 import StatusBadge from "../../components/common/StatusBadge";
 import { missions } from "../../data/droneOpsData";
+import { hasClientPermission } from "../../features/auth/accessControl";
 import { useApiResource } from "../../hooks/useApiResource";
 import { useFleetSearch } from "../../hooks/useFleetSearch";
 import { droneOpsApi } from "../../services/droneOpsApi";
 import MissionForm from "./components/MissionForm";
 
-const Missions = ({ searchValue }) => {
+const Missions = ({ searchValue, user }) => {
   const [showMissionForm, setShowMissionForm] = useState(false);
   const [toast, setToast] = useState(null);
+  const canManageMissions = hasClientPermission(user, "missions:manage");
   const loadMissions = useCallback(() => droneOpsApi.missions.list(), []);
   const { data: apiMissions, error, isLoading, isFallback, refresh } = useApiResource(loadMissions, missions);
   const normalizedMissions = useMemo(() => apiMissions.map(normalizeMission), [apiMissions]);
@@ -73,7 +75,7 @@ const Missions = ({ searchValue }) => {
         <SectionHeader
           title="Mission Control"
           description="Plan, track, and audit drone missions from assignment through completion."
-          action={
+          action={canManageMissions ? (
             <ActionButton
               icon={Plus}
               variant="primary"
@@ -81,7 +83,7 @@ const Missions = ({ searchValue }) => {
             >
               {showMissionForm ? "Hide Form" : "Create Mission"}
             </ActionButton>
-          }
+          ) : null}
         />
         <DataTable
           columns={columns}
@@ -90,7 +92,7 @@ const Missions = ({ searchValue }) => {
           emptyMessage={isLoading ? "Loading mission records..." : "No missions created yet."}
         />
       </div>
-      {showMissionForm && (
+      {canManageMissions && showMissionForm && (
         <MissionForm
           onCreated={(mission) => {
             refresh();
