@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useMemo, useState } from "react";
 import { Activity, AlertTriangle, MapPin, Plane } from "lucide-react";
 import MetricCard from "../../components/common/MetricCard";
 import { incidents, missions } from "../../data/droneOpsData";
+import { hasClientPermission } from "../../features/auth/accessControl";
 import { useApiResource } from "../../hooks/useApiResource";
 import { droneOpsApi } from "../../services/droneOpsApi";
 import ActivityFeed from "./components/ActivityFeed";
@@ -16,7 +17,7 @@ const GeospatialMap = lazy(() => import("../../components/maps/GeospatialMap"));
 
 const Dashboard = ({ searchValue, user }) => {
   const [selectedDrone, setSelectedDrone] = useState(null);
-  const canRead = useCallback((permission) => Boolean(user?.permissions?.includes(permission)), [user]);
+  const canRead = useCallback((permission) => hasClientPermission(user, permission), [user]);
   const loadSummary = useCallback(() => droneOpsApi.reports.summary(), []);
   const loadDrones = useCallback(() => {
     if (!canRead("fleet")) return Promise.resolve([]);
