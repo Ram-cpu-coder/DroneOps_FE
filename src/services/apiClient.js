@@ -1,11 +1,94 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000/api/v1";
 
-export const apiClient = {
-  async get(path) {
-    const response = await fetch(`${API_BASE_URL}${path}`);
-    if (!response.ok) {
-      throw new Error(`Request failed: ${response.status}`);
-    }
-    return response.json();
+const SESSION_KEY = "droneops_session";
+
+const getSession = () => {
+  const rawSession = localStorage.getItem(SESSION_KEY);
+  if (!rawSession) return null;
+
+  try {
+    return JSON.parse(rawSession);
+  } catch {
+    localStorage.removeItem(SESSION_KEY);
+    return null;
   }
 };
+
+const getAccessToken = () => {
+  return getSession()?.accessToken ?? "";
+};
+
+const refreshAccessToken = async () => {
+  const session = getSession();
+  if (!session?.refreshToken) return null;
+
+  const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken: session.refreshToken })
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    localStorage.removeItem(SESSION_KEY);
+    window.dispatchEvent(new Event("droneops:session-expired"));
+    return null;
+  }
+
+  const nextSession = {
+    ...session,
+    accessToken: payload.data.accessToken,
+    refreshToken: payload.data.refreshToken,
+    user: payload.data.user ?? session.user
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
+  return nextSession.accessToken;
+};
+
+const request = async (path, options = {}, retry = true) => {
+  const headers = new Headers(options.headers);
+  const token = getAccessToken();
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  if (options.body && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers,
+    body: options.body instanceof FormData ? options.body : options.body ? JSON.stringify(options.body) : undefined
+  });
+
+  if (response.status === 204) return null;
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const errorText = `${payload.message ?? ""} ${payload.code ?? ""} ${payload.stack ?? ""}`.toLowerCase();
+    const isExpiredJwt = errorText.includes("jwt expired") || errorText.includes("tokenexpirederror") || payload.code === "JWT_EXPIRED";
+    if (retry && isExpiredJwt) {
+      const nextToken = await refreshAccessToken();
+      if (nextToken) {
+        return request(path, options, false);
+      }
+    }
+
+    throw new Error(payload.message || `Request failed: ${response.status}`);
+  }
+
+  return payload.data ?? payload;
+};
+
+export const apiClient = {
+  get: (path) => request(path),
+  post: (path, body) => request(path, { method: "POST", body }),
+  put: (path, body) => request(path, { method: "PUT", body }),
+  delete: (path) => request(path, { method: "DELETE" }),
+  upload: (path, formData) => request(path, { method: "POST", body: formData })
+};
+
+export { API_BASE_URL, SESSION_KEY };

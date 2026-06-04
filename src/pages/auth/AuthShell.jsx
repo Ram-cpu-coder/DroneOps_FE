@@ -1,37 +1,51 @@
-import { Plane } from "lucide-react";
 import DroneOpsVantaScene from "../../components/visuals/DroneOpsVantaScene";
+import DroneLogo from "../../components/common/DroneLogo";
 
 const AuthShell = ({ children }) => {
   return (
     <main className="auth-shell">
+      <DroneOpsVantaScene />
+      <section className="auth-visual" aria-hidden="true">
+        <div className="drone-orbit">
+          <div className="drone-model">
+            <span className="prop prop-a" />
+            <span className="prop prop-b" />
+            <span className="prop prop-c" />
+            <span className="prop prop-d" />
+            <span className="drone-wing wing-left" />
+            <span className="drone-wing wing-right" />
+            <span className="drone-core" />
+            <span className="drone-camera" />
+          </div>
+        </div>
+        <div className="ops-console">
+          <div className="console-map">
+            <span className="route-line route-one" />
+            <span className="route-line route-two" />
+            <span className="map-node map-node-a" />
+            <span className="map-node map-node-b" />
+            <span className="map-node map-node-c" />
+            <span className="zone zone-primary" />
+            <span className="zone zone-warning" />
+          </div>
+          <div className="console-side">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+        </div>
+      </section>
       <section className="auth-panel">
         <div className="auth-brand">
-          <div className="brand-mark">
-            <Plane size={24} strokeWidth={2.4} />
-          </div>
+          <DroneLogo />
           <div>
-            <h1>DroneOps</h1>
-            <p>Enterprise drone operations governance</p>
+            <h1>Drone <span>Ops</span></h1>
+            <p>Intelligent. Autonomous. Connected.</p>
           </div>
         </div>
         {children}
       </section>
-      <aside className="auth-aside">
-        <DroneOpsVantaScene />
-        <div className="auth-identity-card">
-          <div className="auth-orbit-logo">
-            <Plane size={42} strokeWidth={2.2} />
-          </div>
-          <p className="eyebrow">DroneOps Platform</p>
-          <h2>Fleet. Missions. Safety.</h2>
-          <p>Enterprise drone operations in one secure command space.</p>
-          <div className="auth-status-strip">
-            <span>Live fleet</span>
-            <span>Mission ready</span>
-            <span>Compliance aware</span>
-          </div>
-        </div>
-      </aside>
     </main>
   );
 };

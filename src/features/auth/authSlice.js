@@ -1,81 +1,193 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { authService } from "./authService";
+
+export const loginRequested = createAsyncThunk("auth/loginRequested", async (credentials, { rejectWithValue }) => {
+  try {
+    return await authService.login(credentials);
+  } catch (error) {
+    return rejectWithValue(error.message);
+  }
+});
+
+export const googleLoginRequested = createAsyncThunk("auth/googleLoginRequested", async (credential, { rejectWithValue }) => {
+  try {
+    return await authService.loginWithGoogle(credential);
+  } catch (error) {
+    return rejectWithValue(error.message);
+  }
+});
+
+export const googleProfileCompleted = createAsyncThunk("auth/googleProfileCompleted", async (payload, { rejectWithValue }) => {
+  try {
+    return await authService.completeGoogleProfile(payload);
+  } catch (error) {
+    return rejectWithValue(error.message);
+  }
+});
+
+export const signupRequested = createAsyncThunk("auth/signupRequested", async (payload, { rejectWithValue }) => {
+  try {
+    return await authService.signup(payload);
+  } catch (error) {
+    return rejectWithValue(error.message);
+  }
+});
+
+export const verificationCompleted = createAsyncThunk("auth/verificationCompleted", async (token, { rejectWithValue }) => {
+  try {
+    return await authService.verifyEmail(token);
+  } catch (error) {
+    return rejectWithValue(error.message);
+  }
+});
+
+export const passwordResetRequested = createAsyncThunk("auth/passwordResetRequested", async (email, { rejectWithValue }) => {
+  try {
+    return await authService.requestPasswordReset(email);
+  } catch (error) {
+    return rejectWithValue(error.message);
+  }
+});
+
+export const logoutRequested = createAsyncThunk("auth/logoutRequested", async () => {
+  await authService.logout();
+});
 
 const initialState = {
   session: authService.getSession(),
   authView: "login",
   pendingVerification: null,
-  error: ""
+  pendingGoogleProfile: null,
+  passwordReset: null,
+  error: "",
+  isLoading: false
 };
 
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    loginRequested(state, action) {
-      const result = authService.login(action.payload);
-      state.error = "";
-
-      if (result.ok) {
-        state.session = result.session;
-        state.authView = "login";
-        state.pendingVerification = null;
-        return;
-      }
-
-      if (result.requiresVerification) {
-        state.authView = "verify";
-        state.pendingVerification = {
-          user: result.user,
-          token: "mock.verify.existing-user"
-        };
-        return;
-      }
-
-      state.error = result.message;
-    },
-    signupRequested(state, action) {
-      const result = authService.signup(action.payload);
-      if (result.ok) {
-        state.authView = "verify";
-        state.error = "";
-        state.pendingVerification = {
-          user: result.user,
-          token: result.verificationToken
-        };
-      }
-    },
-    verificationCompleted(state) {
-      if (!state.pendingVerification?.user) return;
-      state.session = authService.verifyEmail(state.pendingVerification.user);
-      state.pendingVerification = null;
-      state.authView = "login";
-      state.error = "";
-    },
-    passwordResetRequested(state, action) {
-      state.passwordReset = authService.requestPasswordReset(action.payload);
-    },
     authViewChanged(state, action) {
       state.authView = action.payload;
       state.error = "";
+      if (action.payload !== "reset") state.passwordReset = null;
     },
     loggedOut(state) {
-      authService.logout();
+      localStorage.removeItem("droneops_session");
       state.session = null;
       state.authView = "login";
       state.pendingVerification = null;
+      state.pendingGoogleProfile = null;
       state.error = "";
     }
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(loginRequested.pending, (state) => {
+        state.isLoading = true;
+        state.error = "";
+      })
+      .addCase(loginRequested.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.session = action.payload;
+        state.authView = "login";
+        state.pendingVerification = null;
+      })
+      .addCase(loginRequested.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload ?? "Login failed";
+      })
+      .addCase(googleLoginRequested.pending, (state) => {
+        state.isLoading = true;
+        state.error = "";
+      })
+      .addCase(googleLoginRequested.fulfilled, (state, action) => {
+        state.isLoading = false;
+        if (action.payload.needsOnboarding) {
+          state.authView = "google_onboarding";
+          state.pendingGoogleProfile = {
+            credential: action.payload.credential,
+            profile: action.payload.googleProfile
+          };
+          state.session = null;
+          return;
+        }
+
+        state.session = action.payload;
+        state.authView = "login";
+        state.pendingVerification = null;
+        state.pendingGoogleProfile = null;
+      })
+      .addCase(googleLoginRequested.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload ?? "Google sign-in failed";
+      })
+      .addCase(googleProfileCompleted.pending, (state) => {
+        state.isLoading = true;
+        state.error = "";
+      })
+      .addCase(googleProfileCompleted.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.session = action.payload;
+        state.authView = "login";
+        state.pendingGoogleProfile = null;
+      })
+      .addCase(googleProfileCompleted.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload ?? "Google profile completion failed";
+      })
+      .addCase(signupRequested.pending, (state) => {
+        state.isLoading = true;
+        state.error = "";
+      })
+      .addCase(signupRequested.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.authView = "verify";
+        state.pendingVerification = action.payload;
+      })
+      .addCase(signupRequested.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload ?? "Signup failed";
+      })
+      .addCase(verificationCompleted.pending, (state) => {
+        state.isLoading = true;
+        state.error = "";
+      })
+      .addCase(verificationCompleted.fulfilled, (state) => {
+        state.isLoading = false;
+        state.authView = "login";
+        state.pendingVerification = null;
+      })
+      .addCase(verificationCompleted.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload ?? "Verification failed";
+      })
+      .addCase(passwordResetRequested.pending, (state) => {
+        state.isLoading = true;
+        state.error = "";
+        state.passwordReset = null;
+      })
+      .addCase(passwordResetRequested.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.passwordReset = action.payload;
+      })
+      .addCase(passwordResetRequested.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload ?? "Password reset failed";
+      })
+      .addCase(logoutRequested.fulfilled, (state) => {
+        state.session = null;
+        state.authView = "login";
+        state.pendingVerification = null;
+        state.pendingGoogleProfile = null;
+        state.error = "";
+      });
   }
 });
 
 export const {
   authViewChanged,
-  loggedOut,
-  loginRequested,
-  passwordResetRequested,
-  signupRequested,
-  verificationCompleted
+  loggedOut
 } = authSlice.actions;
 
 export default authSlice.reducer;

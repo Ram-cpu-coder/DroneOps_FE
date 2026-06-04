@@ -1,8 +1,22 @@
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 
-const AppLayout = ({ activeRoute, routes, user, searchValue, onNavigate, onSearchChange, onLogout, children }) => {
-  const currentRoute = routes.find((route) => route.id === activeRoute) ?? routes[0];
+const AppLayout = ({
+  activeRoute,
+  routes,
+  user,
+  searchValue,
+  themeMode,
+  onNavigate,
+  onSearchChange,
+  onThemeModeChange,
+  onLogout,
+  children
+}) => {
+  const currentRoute = routes.find((route) => route.id === activeRoute) ?? routes[0] ?? {
+    label: "DroneOps",
+    description: "Your workspace is loading."
+  };
 
   return (
     <div className="app-shell">
@@ -13,7 +27,9 @@ const AppLayout = ({ activeRoute, routes, user, searchValue, onNavigate, onSearc
           description={currentRoute.description}
           user={user}
           searchValue={searchValue}
+          themeMode={themeMode}
           onSearchChange={onSearchChange}
+          onThemeModeChange={onThemeModeChange}
         />
         {children}
       </main>

@@ -1,18 +1,35 @@
-import { demoUsers, userRoles } from "../../data/authData";
+import { apiClient, SESSION_KEY } from "../../services/apiClient";
+import { userRoles } from "../../data/authData";
 
-const SESSION_KEY = "droneops_mock_session";
-const SESSION_DURATION_MS = 30 * 60 * 1000;
+const roleIdByApiRole = {
+  OPERATIONS_MANAGER: "operations_manager",
+  REMOTE_PILOT: "remote_pilot",
+  MAINTENANCE_COORDINATOR: "maintenance_coordinator",
+  SAFETY_OFFICER: "safety_officer",
+  COMPLIANCE_OFFICER: "compliance_officer",
+  SYSTEM_ADMINISTRATOR: "system_administrator"
+};
 
-const createToken = (prefix) => `${prefix}.${Date.now()}.${Math.random().toString(36).slice(2)}`;
+const apiRoleByRoleId = Object.fromEntries(
+  Object.entries(roleIdByApiRole).map(([apiRole, roleId]) => [roleId, apiRole])
+);
 
-const sanitizeUser = (user) => {
-  const { password, ...safeUser } = user;
-  const role = userRoles.find((item) => item.id === safeUser.role);
+const decorateUser = (user) => {
+  const role = userRoles.find((item) => item.id === (roleIdByApiRole[user.role] ?? user.role));
+  const roleId = roleIdByApiRole[user.role] ?? user.role;
+
   return {
-    ...safeUser,
-    roleLabel: role?.label ?? "Unknown Role",
-    permissions: role?.permissions ?? []
+    ...user,
+    role: roleId,
+    roleLabel: role?.label ?? user.role,
+    permissions: role?.permissions ?? [],
+    organization: user.organisation?.name ?? user.organization ?? "DroneOps"
   };
+};
+
+const persistSession = (session) => {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  return session;
 };
 
 export const authService = {
@@ -22,85 +39,89 @@ export const authService = {
 
     try {
       const session = JSON.parse(rawSession);
-      if (Date.now() > session.expiresAt) {
-        localStorage.removeItem(SESSION_KEY);
-        return null;
-      }
-      return session;
+      if (!session?.user) return null;
+
+      return {
+        ...session,
+        user: decorateUser(session.user)
+      };
     } catch {
       localStorage.removeItem(SESSION_KEY);
       return null;
     }
   },
 
-  login({ email, password }) {
-    const user = demoUsers.find((item) => item.email.toLowerCase() === email.toLowerCase());
+  async login({ email, password }) {
+    const result = await apiClient.post("/auth/login", { email, password });
+    return persistSession({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: decorateUser(result.user)
+    });
+  },
 
-    if (!user || user.password !== password) {
-      return { ok: false, message: "Invalid email or password." };
-    }
-
-    if (!user.isVerified) {
+  async loginWithGoogle(credential) {
+    const result = await apiClient.post("/auth/google", { credential });
+    if (result.needsOnboarding) {
       return {
-        ok: false,
-        requiresVerification: true,
-        user: sanitizeUser(user),
-        message: "Email verification is required before accessing DroneOps."
+        needsOnboarding: true,
+        credential,
+        googleProfile: result.googleProfile
       };
     }
 
-    const session = {
-      accessToken: createToken("mock.jwt.access"),
-      refreshToken: createToken("mock.jwt.refresh"),
-      createdAt: Date.now(),
-      expiresAt: Date.now() + SESSION_DURATION_MS,
-      user: sanitizeUser(user)
-    };
-
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    return { ok: true, session };
+    return persistSession({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: decorateUser(result.user)
+    });
   },
 
-  signup(payload) {
-    const user = {
-      id: `usr-${Date.now()}`,
+  async completeGoogleProfile(payload) {
+    const result = await apiClient.post("/auth/google/complete-profile", {
+      credential: payload.credential,
+      organisationName: payload.organization,
+      role: apiRoleByRoleId[payload.role] ?? "OPERATIONS_MANAGER"
+    });
+
+    return persistSession({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: decorateUser(result.user)
+    });
+  },
+
+  async signup(payload) {
+    const result = await apiClient.post("/auth/signup", {
       name: payload.name,
       email: payload.email,
-      role: payload.role,
-      organization: payload.organization,
-      isVerified: false,
-      avatar: payload.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()
-    };
+      password: payload.password,
+      organisationName: payload.organization,
+      industry: payload.industry,
+      role: apiRoleByRoleId[payload.role] ?? "OPERATIONS_MANAGER"
+    });
 
     return {
-      ok: true,
-      verificationToken: createToken("mock.verify"),
-      user: sanitizeUser({ ...user, password: payload.password })
+      emailSent: result.emailSent,
+      emailError: result.emailError,
+      devVerificationToken: result.devVerificationToken,
+      user: decorateUser(result.user)
     };
   },
 
-  verifyEmail(user) {
-    const session = {
-      accessToken: createToken("mock.jwt.access"),
-      refreshToken: createToken("mock.jwt.refresh"),
-      createdAt: Date.now(),
-      expiresAt: Date.now() + SESSION_DURATION_MS,
-      user: { ...user, isVerified: true }
-    };
-
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    return session;
+  async verifyEmail(token) {
+    return apiClient.get(`/auth/verify/${token}?format=json`);
   },
 
-  requestPasswordReset(email) {
-    return {
-      ok: true,
-      token: createToken("mock.reset"),
-      message: `Password reset link prepared for ${email}.`
-    };
+  async requestPasswordReset(email) {
+    return apiClient.post("/auth/forgot-password", { email });
   },
 
-  logout() {
-    localStorage.removeItem(SESSION_KEY);
+  async logout() {
+    try {
+      await apiClient.post("/auth/logout", {});
+    } finally {
+      localStorage.removeItem(SESSION_KEY);
+    }
   }
 };
