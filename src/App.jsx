@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import AppLayout from "./components/layouts/AppLayout";
 import { canAccessRoute, firstAccessibleRoute } from "./features/auth/accessControl";
@@ -58,26 +58,26 @@ const App = () => {
     return accessibleRoutes.find((route) => route.id === activeRoute)?.component ?? accessibleRoutes[0]?.component;
   }, [accessibleRoutes, activeRoute]);
 
-  const handleLogin = (credentials) => {
+  const handleLogin = useCallback((credentials) => {
     dispatch(loginRequested(credentials));
-  };
+  }, [dispatch]);
 
-  const handleGoogleLogin = (credential) => {
+  const handleGoogleLogin = useCallback((credential) => {
     dispatch(googleLoginRequested(credential));
-  };
+  }, [dispatch]);
 
-  const handleSignup = (payload) => {
+  const handleSignup = useCallback((payload) => {
     dispatch(signupRequested(payload));
-  };
+  }, [dispatch]);
 
-  const handleVerify = () => {
+  const handleVerify = useCallback(() => {
     dispatch(verificationCompleted(pendingVerification?.devVerificationToken));
-  };
+  }, [dispatch, pendingVerification]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     dispatch(loggedOut());
     dispatch(uiReset());
-  };
+  }, [dispatch]);
 
   if (!session?.user) {
     return (
