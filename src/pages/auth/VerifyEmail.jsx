@@ -1,21 +1,25 @@
 import { MailCheck } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 
-const VerifyEmail = ({ pendingUser, verificationToken, onVerify, onAuthViewChange }) => {
+const VerifyEmail = ({ pendingUser, emailSent, emailError, canUseLocalVerification, onVerify, onAuthViewChange }) => {
   return (
     <div className="auth-form">
       <div>
         <h2>Email verification</h2>
-        <p>DroneOps blocks unverified users from the operations portal until verification is completed.</p>
+        <p>We sent a secure verification link to your email. Open it once, then come back and log in.</p>
       </div>
       <div className="verification-card">
-        <strong>Verification email prepared</strong>
+        <strong>{emailSent ? "Check your inbox" : "Verification is ready"}</strong>
         <span>{pendingUser?.email}</span>
-        <code>{verificationToken}</code>
+        {!emailSent && emailError && (
+          <small>Email delivery needs SMTP review. You can still use local verification while developing.</small>
+        )}
       </div>
-      <ActionButton icon={MailCheck} variant="primary" onClick={onVerify}>
-        Simulate Verify Email
-      </ActionButton>
+      {canUseLocalVerification && !emailSent && (
+        <ActionButton icon={MailCheck} variant="primary" onClick={onVerify}>
+          Verify locally
+        </ActionButton>
+      )}
       <button type="button" className="text-button left" onClick={() => onAuthViewChange("login")}>
         Back to login
       </button>

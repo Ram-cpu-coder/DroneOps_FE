@@ -1,4 +1,4 @@
-const DataTable = ({ columns, rows, getRowKey }) => {
+const DataTable = ({ columns, rows, getRowKey, emptyMessage = "No records found." }) => {
   return (
     <div className="table-wrap">
       <table>
@@ -10,6 +10,11 @@ const DataTable = ({ columns, rows, getRowKey }) => {
           </tr>
         </thead>
         <tbody>
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={columns.length}>{emptyMessage}</td>
+            </tr>
+          )}
           {rows.map((row, index) => (
             <tr key={getRowKey ? getRowKey(row) : index}>
               {columns.map((column) => (

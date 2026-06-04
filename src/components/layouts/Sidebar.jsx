@@ -4,8 +4,9 @@ import DroneLogo from "../common/DroneLogo";
 
 const Sidebar = ({ activeRoute, routes, onNavigate, onLogout }) => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const primaryRoutes = routes.filter((route) => !route.secondary);
-  const secondaryRoutes = routes.filter((route) => route.secondary);
+  const safeRoutes = Array.isArray(routes) ? routes : [];
+  const primaryRoutes = safeRoutes.filter((route) => !route.secondary);
+  const secondaryRoutes = safeRoutes.filter((route) => route.secondary);
   const handleNavigate = (routeId) => {
     onNavigate(routeId);
     setIsMobileNavOpen(false);

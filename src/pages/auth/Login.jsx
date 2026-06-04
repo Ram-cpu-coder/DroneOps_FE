@@ -1,14 +1,85 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, BarChart3, Eye, EyeOff, Lock, MapPin, RadioTower, ShieldCheck, User } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 
-const Login = ({ error, onLogin, onAuthViewChange }) => {
+const GOOGLE_SCRIPT_ID = "google-identity-services";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+const loadGoogleIdentity = () => {
+  if (window.google?.accounts?.id) return Promise.resolve(window.google);
+
+  return new Promise((resolve, reject) => {
+    const existingScript = document.getElementById(GOOGLE_SCRIPT_ID);
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(window.google), { once: true });
+      existingScript.addEventListener("error", reject, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = GOOGLE_SCRIPT_ID;
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve(window.google);
+    script.onerror = () => reject(new Error("Google sign-in script could not be loaded"));
+    document.head.appendChild(script);
+  });
+};
+
+const Login = ({ error, isLoading, onLogin, onGoogleLogin, onAuthViewChange }) => {
   const [form, setForm] = useState({ email: "ops@droneops.test", password: "Password123!" });
   const [showPassword, setShowPassword] = useState(false);
+  const [googleError, setGoogleError] = useState("");
+  const googleButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !googleButtonRef.current) return;
+
+    let isMounted = true;
+
+    loadGoogleIdentity()
+      .then((google) => {
+        if (!isMounted || !googleButtonRef.current) return;
+
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: ({ credential }) => {
+            if (credential) onGoogleLogin(credential);
+          }
+        });
+
+        googleButtonRef.current.innerHTML = "";
+        google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: "outline",
+          size: "large",
+          type: "standard",
+          shape: "rectangular",
+          text: "signin_with",
+          logo_alignment: "center",
+          width: Math.min(400, googleButtonRef.current.offsetWidth || 400)
+        });
+      })
+      .catch((googleScriptError) => {
+        if (isMounted) setGoogleError(googleScriptError.message);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [onGoogleLogin]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
     onLogin(form);
+  };
+
+  const handleGoogleSetupCheck = () => {
+    setGoogleError("");
+
+    if (!GOOGLE_CLIENT_ID) {
+      setGoogleError("Add VITE_GOOGLE_CLIENT_ID to enable Google sign-in.");
+    }
   };
 
   return (
@@ -17,7 +88,7 @@ const Login = ({ error, onLogin, onAuthViewChange }) => {
         <h2>Welcome Back</h2>
         <p>Sign in to continue your operations</p>
       </div>
-      {error && <div className="auth-alert">{error}</div>}
+      {(error || googleError) && <div className="auth-alert">{error || googleError}</div>}
       <label className="field">
         <span>Email</span>
         <User className="field-icon" size={18} />
@@ -53,12 +124,20 @@ const Login = ({ error, onLogin, onAuthViewChange }) => {
           Forgot password?
         </button>
       </div>
-      <ActionButton icon={ArrowRight} iconPosition="end" variant="primary" type="submit">Log In</ActionButton>
+      <ActionButton icon={ArrowRight} iconPosition="end" variant="primary" type="submit" disabled={isLoading}>
+        {isLoading ? "Logging in" : "Log In"}
+      </ActionButton>
       <div className="auth-divider"><span>or</span></div>
-      <button className="google-button" type="button">
-        <span className="google-mark">G</span>
-        Sign in with Google
-      </button>
+      {GOOGLE_CLIENT_ID ? (
+        <div className={`google-button-shell${isLoading ? " is-loading" : ""}`}>
+          <div ref={googleButtonRef} />
+        </div>
+      ) : (
+        <button className="google-button" type="button" onClick={handleGoogleSetupCheck} disabled={isLoading}>
+          <span className="google-mark">G</span>
+          Sign in with Google
+        </button>
+      )}
       <div className="auth-switch">
         <span>No account yet?</span>
         <button type="button" className="text-button" onClick={() => onAuthViewChange("signup")}>
