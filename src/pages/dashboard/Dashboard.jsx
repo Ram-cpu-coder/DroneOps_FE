@@ -14,24 +14,24 @@ import DroneProfileDialog from "../fleet/components/DroneProfileDialog";
 const metricIcons = [Plane, Activity, AlertTriangle, MapPin];
 const GeospatialMap = lazy(() => import("../../components/maps/GeospatialMap"));
 
-const Dashboard = ({ searchValue }) => {
+const Dashboard = ({ searchValue, user }) => {
   const [selectedDrone, setSelectedDrone] = useState(null);
+  const canRead = useCallback((permission) => Boolean(user?.permissions?.includes(permission)), [user]);
   const loadSummary = useCallback(() => droneOpsApi.reports.summary(), []);
-  const loadDrones = useCallback(() => droneOpsApi.drones.list(), []);
+  const loadDrones = useCallback(() => {
+    if (!canRead("fleet")) return Promise.resolve([]);
+    return droneOpsApi.drones.list();
+  }, [canRead]);
   const loadTelemetry = useCallback(() => droneOpsApi.telemetry.live(), []);
   const loadActivitySources = useCallback(async () => {
-    const requests = await Promise.allSettled([
-      droneOpsApi.missions.list(),
-      droneOpsApi.incidents.list(),
-      droneOpsApi.reports.list()
+    const [missionsResult, incidentsResult, reportsResult] = await Promise.all([
+      canRead("missions") ? droneOpsApi.missions.list().catch(() => []) : [],
+      canRead("incidents") ? droneOpsApi.incidents.list().catch(() => []) : [],
+      canRead("reports") ? droneOpsApi.reports.list().catch(() => []) : []
     ]);
 
-    const [missionsResult, incidentsResult, reportsResult] = requests.map((request) => (
-      request.status === "fulfilled" ? request.value : []
-    ));
-
     return { missions: missionsResult, incidents: incidentsResult, reports: reportsResult };
-  }, []);
+  }, [canRead]);
 
   const { data: summary, isLoading: isSummaryLoading, error: summaryError } = useApiResource(loadSummary, null);
   const { data: apiDrones, isLoading: isDronesLoading, refresh: refreshDrones } = useApiResource(loadDrones, []);
