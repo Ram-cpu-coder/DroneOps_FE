@@ -13,10 +13,14 @@ const AppLayout = ({
   onLogout,
   children
 }) => {
+<<<<<<< HEAD
   const currentRoute = routes.find((route) => route.id === activeRoute) ?? routes[0] ?? {
     label: "DroneOps",
     description: "Your workspace is loading."
   };
+=======
+  const currentRoute = routes.find((route) => route.id === activeRoute) ?? routes[0];
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 
   return (
     <div className="app-shell">

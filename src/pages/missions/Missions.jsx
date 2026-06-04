@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { useCallback, useMemo, useState } from "react";
 import { CalendarClock, CheckCircle2, Plus, Route, X } from "lucide-react";
+=======
+import { useEffect, useRef, useState } from "react";
+import { CalendarClock, Plus, Route } from "lucide-react";
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 import ActionButton from "../../components/common/ActionButton";
 import DataTable from "../../components/common/DataTable";
 import MetricCard from "../../components/common/MetricCard";
@@ -9,11 +14,15 @@ import StatusBadge from "../../components/common/StatusBadge";
 import { missions } from "../../data/droneOpsData";
 import { useApiResource } from "../../hooks/useApiResource";
 import { useFleetSearch } from "../../hooks/useFleetSearch";
+<<<<<<< HEAD
 import { droneOpsApi } from "../../services/droneOpsApi";
+=======
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 import MissionForm from "./components/MissionForm";
 
 const Missions = ({ searchValue }) => {
   const [showMissionForm, setShowMissionForm] = useState(false);
+<<<<<<< HEAD
   const [toast, setToast] = useState(null);
   const loadMissions = useCallback(() => droneOpsApi.missions.list(), []);
   const { data: apiMissions, error, isLoading, isFallback, refresh } = useApiResource(loadMissions, missions);
@@ -25,6 +34,11 @@ const Missions = ({ searchValue }) => {
   const averageProgress = metricMissions.length
     ? Math.round(metricMissions.reduce((total, mission) => total + Number(mission.progress ?? 0), 0) / metricMissions.length)
     : 0;
+=======
+  const missionFormRef = useRef(null);
+  const filteredMissions = useFleetSearch(missions, searchValue);
+  const activeMissions = missions.filter((mission) => mission.status === "In Progress").length;
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 
   const columns = [
     { key: "id", label: "Mission ID", render: (mission) => <strong>{mission.id}</strong> },
@@ -37,6 +51,20 @@ const Missions = ({ searchValue }) => {
     { key: "progress", label: "Progress", render: (mission) => <ProgressBar value={mission.progress} /> },
     { key: "eta", label: "ETA" }
   ];
+
+  useEffect(() => {
+    if (!showMissionForm || !missionFormRef.current) return;
+    missionFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    missionFormRef.current.focus({ preventScroll: true });
+  }, [showMissionForm]);
+
+  const handleCreateMissionClick = () => {
+    if (showMissionForm) {
+      setShowMissionForm(false);
+      return;
+    }
+    setShowMissionForm(true);
+  };
 
   return (
     <section className="page-stack">
@@ -69,6 +97,7 @@ const Missions = ({ searchValue }) => {
             <ActionButton
               icon={Plus}
               variant="primary"
+<<<<<<< HEAD
               onClick={() => setShowMissionForm((current) => !current)}
             >
               Create Mission
@@ -80,9 +109,17 @@ const Missions = ({ searchValue }) => {
           rows={filteredMissions}
           getRowKey={(mission) => mission.id}
           emptyMessage={isLoading ? "Loading mission records..." : "No missions created yet."}
+=======
+              onClick={handleCreateMissionClick}
+            >
+              {showMissionForm ? "Hide Form" : "Create Mission"}
+            </ActionButton>
+          }
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
         />
       </div>
       {showMissionForm && (
+<<<<<<< HEAD
         <MissionForm
           onCreated={(mission) => {
             refresh();
@@ -95,6 +132,11 @@ const Missions = ({ searchValue }) => {
           }}
           onCancel={() => setShowMissionForm(false)}
         />
+=======
+        <div ref={missionFormRef} className="form-scroll-anchor" tabIndex={-1}>
+          <MissionForm onCancel={() => setShowMissionForm(false)} />
+        </div>
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
       )}
     </section>
   );

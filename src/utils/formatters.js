@@ -2,7 +2,7 @@ export const toPercent = (value) => `${Math.round(value)}%`;
 
 export const getRiskTone = (risk) => {
   const normalized = risk?.toLowerCase();
-  if (normalized === "high") return "red";
+  if (["high", "critical"].includes(normalized)) return "red";
   if (normalized === "medium") return "amber";
   return "green";
 };

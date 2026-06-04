@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { useCallback, useMemo, useState } from "react";
 import { CheckCircle2, Eye, Plane, Plus, Wrench, X } from "lucide-react";
+=======
+import { useEffect, useRef, useState } from "react";
+import { Plane, Plus, Wrench } from "lucide-react";
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 import ActionButton from "../../components/common/ActionButton";
 import BatteryMeter from "../../components/common/BatteryMeter";
 import DataTable from "../../components/common/DataTable";
@@ -16,6 +21,7 @@ import RegisterDroneForm from "./components/RegisterDroneForm";
 
 const Fleet = ({ searchValue }) => {
   const [showRegisterDrone, setShowRegisterDrone] = useState(false);
+<<<<<<< HEAD
   const [selectedDrone, setSelectedDrone] = useState(null);
   const [toast, setToast] = useState(null);
   const loadDrones = useCallback(() => droneOpsApi.drones.list(), []);
@@ -27,6 +33,12 @@ const Fleet = ({ searchValue }) => {
   const metricDrones = isFallback ? [] : normalizedDrones;
   const activeCount = metricDrones.filter((drone) => drone.status === "AVAILABLE").length;
   const maintenanceCount = metricDrones.filter((drone) => drone.status === "MAINTENANCE").length;
+=======
+  const registerFormRef = useRef(null);
+  const filteredDrones = useFleetSearch(drones, searchValue);
+  const activeCount = drones.filter((drone) => drone.status === "AVAILABLE").length;
+  const maintenanceCount = drones.filter((drone) => drone.status === "MAINTENANCE").length;
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 
   const columns = [
     {
@@ -48,6 +60,20 @@ const Fleet = ({ searchValue }) => {
     { key: "certificationStatus", label: "Certification", render: (drone) => <StatusBadge>{drone.certificationStatus}</StatusBadge> },
     { key: "nextMaintenance", label: "Next Service" }
   ];
+
+  useEffect(() => {
+    if (!showRegisterDrone || !registerFormRef.current) return;
+    registerFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    registerFormRef.current.focus({ preventScroll: true });
+  }, [showRegisterDrone]);
+
+  const handleRegisterDroneClick = () => {
+    if (showRegisterDrone) {
+      setShowRegisterDrone(false);
+      return;
+    }
+    setShowRegisterDrone(true);
+  };
 
   return (
     <section className="page-stack">
@@ -72,6 +98,7 @@ const Fleet = ({ searchValue }) => {
         <MetricCard label="Maintenance" value={isLoading ? "..." : maintenanceCount} delta="Requires engineer review" icon={Wrench} tone="red" />
       </div>
 
+<<<<<<< HEAD
       {error && <div className="auth-alert">Backend unavailable: showing fallback fleet data. {error}</div>}
       {showRegisterDrone && (
         <RegisterDroneForm
@@ -110,6 +137,12 @@ const Fleet = ({ searchValue }) => {
           }}
           onClose={() => setSelectedDrone(null)}
         />
+=======
+      {showRegisterDrone && (
+        <div ref={registerFormRef} className="form-scroll-anchor" tabIndex={-1}>
+          <RegisterDroneForm />
+        </div>
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
       )}
 
       <div className="panel">
@@ -120,7 +153,7 @@ const Fleet = ({ searchValue }) => {
             <ActionButton
               icon={Plus}
               variant="primary"
-              onClick={() => setShowRegisterDrone((current) => !current)}
+              onClick={handleRegisterDroneClick}
             >
               {showRegisterDrone ? "Hide Form" : "Register Drone"}
             </ActionButton>

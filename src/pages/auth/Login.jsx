@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { useEffect, useRef, useState } from "react";
+=======
+import { useState } from "react";
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 import { ArrowRight, BarChart3, Eye, EyeOff, Lock, MapPin, RadioTower, ShieldCheck, User } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 
@@ -30,6 +34,7 @@ const loadGoogleIdentity = () => {
 const Login = ({ error, isLoading, onLogin, onGoogleLogin, onAuthViewChange }) => {
   const [form, setForm] = useState({ email: "ops@droneops.test", password: "Password123!" });
   const [showPassword, setShowPassword] = useState(false);
+<<<<<<< HEAD
   const [googleError, setGoogleError] = useState("");
   const googleButtonRef = useRef(null);
 
@@ -68,6 +73,8 @@ const Login = ({ error, isLoading, onLogin, onGoogleLogin, onAuthViewChange }) =
       isMounted = false;
     };
   }, [onGoogleLogin]);
+=======
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -124,6 +131,7 @@ const Login = ({ error, isLoading, onLogin, onGoogleLogin, onAuthViewChange }) =
           Forgot password?
         </button>
       </div>
+<<<<<<< HEAD
       <ActionButton icon={ArrowRight} iconPosition="end" variant="primary" type="submit" disabled={isLoading}>
         {isLoading ? "Logging in" : "Log In"}
       </ActionButton>
@@ -138,6 +146,14 @@ const Login = ({ error, isLoading, onLogin, onGoogleLogin, onAuthViewChange }) =
           Sign in with Google
         </button>
       )}
+=======
+      <ActionButton icon={ArrowRight} iconPosition="end" variant="primary" type="submit">Log In</ActionButton>
+      <div className="auth-divider"><span>or</span></div>
+      <button className="google-button" type="button">
+        <span className="google-mark">G</span>
+        Sign in with Google
+      </button>
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
       <div className="auth-switch">
         <span>No account yet?</span>
         <button type="button" className="text-button" onClick={() => onAuthViewChange("signup")}>

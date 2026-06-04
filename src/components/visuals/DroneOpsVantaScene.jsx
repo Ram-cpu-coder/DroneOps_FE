@@ -17,21 +17,21 @@ const DroneOpsVantaScene = () => {
       if (cancelled || !sceneRef.current) return;
 
       vantaRef.current = NET({
-      el: sceneRef.current,
-      THREE,
-      mouseControls: true,
-      touchControls: true,
-      gyroControls: false,
-      minHeight: 200,
-      minWidth: 200,
-      scale: 1,
-      scaleMobile: 1,
-      color: 0x1d6fea,
-      backgroundColor: 0xeef6ff,
-      points: 11,
-      maxDistance: 22,
-      spacing: 17,
-      showDots: true
+        el: sceneRef.current,
+        THREE,
+        mouseControls: true,
+        touchControls: true,
+        gyroControls: false,
+        minHeight: 200,
+        minWidth: 200,
+        scale: 1,
+        scaleMobile: 1,
+        color: 0x4d8dff,
+        backgroundColor: 0x06101d,
+        points: 12,
+        maxDistance: 24,
+        spacing: 18,
+        showDots: true
       });
     };
 

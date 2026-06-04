@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { useCallback, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Plus, ShieldCheck, UserRoundCheck, X } from "lucide-react";
+=======
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, Plus, ShieldCheck, UserRoundCheck } from "lucide-react";
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 import ActionButton from "../../components/common/ActionButton";
 import DataTable from "../../components/common/DataTable";
 import MetricCard from "../../components/common/MetricCard";
@@ -8,11 +13,15 @@ import StatusBadge from "../../components/common/StatusBadge";
 import { incidents } from "../../data/droneOpsData";
 import { useApiResource } from "../../hooks/useApiResource";
 import { useFleetSearch } from "../../hooks/useFleetSearch";
+<<<<<<< HEAD
 import { droneOpsApi } from "../../services/droneOpsApi";
+=======
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 import IncidentForm from "./components/IncidentForm";
 
 const Incidents = ({ searchValue }) => {
   const [showIncidentForm, setShowIncidentForm] = useState(false);
+<<<<<<< HEAD
   const [toast, setToast] = useState(null);
   const loadIncidents = useCallback(() => droneOpsApi.incidents.list(), []);
   const { data: apiIncidents, error, isLoading, isFallback, refresh } = useApiResource(loadIncidents, incidents);
@@ -26,6 +35,11 @@ const Incidents = ({ searchValue }) => {
       .map((incident) => incident.owner)
       .filter((owner) => owner && owner !== "Unassigned")
   ).size;
+=======
+  const incidentFormRef = useRef(null);
+  const filteredIncidents = useFleetSearch(incidents, searchValue);
+  const highCount = incidents.filter((incident) => incident.severity === "High").length;
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 
   const columns = [
     { key: "id", label: "Incident", render: (incident) => <strong>{incident.id}</strong> },
@@ -36,6 +50,20 @@ const Incidents = ({ searchValue }) => {
     { key: "source", label: "Source" },
     { key: "time", label: "Reported" }
   ];
+
+  useEffect(() => {
+    if (!showIncidentForm || !incidentFormRef.current) return;
+    incidentFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    incidentFormRef.current.focus({ preventScroll: true });
+  }, [showIncidentForm]);
+
+  const handleLogIncidentClick = () => {
+    if (showIncidentForm) {
+      setShowIncidentForm(false);
+      return;
+    }
+    setShowIncidentForm(true);
+  };
 
   return (
     <section className="page-stack">
@@ -68,6 +96,7 @@ const Incidents = ({ searchValue }) => {
             <ActionButton
               icon={Plus}
               variant="primary"
+<<<<<<< HEAD
               onClick={() => setShowIncidentForm((current) => !current)}
             >
               Log Incident
@@ -79,9 +108,17 @@ const Incidents = ({ searchValue }) => {
           rows={filteredIncidents}
           getRowKey={(incident) => incident.id}
           emptyMessage={isLoading ? "Loading incident records..." : "No incidents logged yet."}
+=======
+              onClick={handleLogIncidentClick}
+            >
+              {showIncidentForm ? "Hide Form" : "Log Incident"}
+            </ActionButton>
+          }
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
         />
       </div>
       {showIncidentForm && (
+<<<<<<< HEAD
         <IncidentForm
           onCreated={(incident) => {
             refresh();
@@ -94,6 +131,11 @@ const Incidents = ({ searchValue }) => {
           }}
           onCancel={() => setShowIncidentForm(false)}
         />
+=======
+        <div ref={incidentFormRef} className="form-scroll-anchor" tabIndex={-1}>
+          <IncidentForm onCancel={() => setShowIncidentForm(false)} />
+        </div>
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
       )}
       <div className="detail-grid">
         {filteredIncidents.map((incident) => (

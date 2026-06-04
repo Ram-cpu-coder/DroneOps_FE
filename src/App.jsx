@@ -23,7 +23,11 @@ import { appRoutes } from "./routes/appRoutes";
 
 const App = () => {
   const dispatch = useDispatch();
+<<<<<<< HEAD
   const { session, authView, pendingVerification, pendingGoogleProfile, error, passwordReset, isLoading } = useSelector((state) => state.auth);
+=======
+  const { session, authView, pendingVerification, error, passwordReset } = useSelector((state) => state.auth);
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
   const { activeRoute, globalSearch, themeMode } = useSelector((state) => state.ui);
 
   const accessibleRoutes = useMemo(() => {
@@ -44,6 +48,7 @@ const App = () => {
     window.localStorage.setItem("droneops-theme-mode", themeMode);
   }, [themeMode]);
 
+<<<<<<< HEAD
   useEffect(() => {
     const handleSessionExpired = () => {
       dispatch(loggedOut());
@@ -54,6 +59,8 @@ const App = () => {
     return () => window.removeEventListener("droneops:session-expired", handleSessionExpired);
   }, [dispatch]);
 
+=======
+>>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
   const ActivePage = useMemo(() => {
     return accessibleRoutes.find((route) => route.id === activeRoute)?.component ?? accessibleRoutes[0]?.component;
   }, [accessibleRoutes, activeRoute]);
