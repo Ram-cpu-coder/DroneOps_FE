@@ -7,6 +7,20 @@ export const useApiResource = (loader, fallbackData = []) => {
   const [isFallback, setIsFallback] = useState(false);
   const fallbackRef = useRef(fallbackData);
 
+  const loadWithColdStartRetry = async () => {
+    try {
+      return await loader();
+    } catch (error) {
+      const message = error.message?.toLowerCase() ?? "";
+      const looksLikeColdStart = message.includes("failed to fetch") || message.includes("networkerror") || message.includes("load failed");
+
+      if (!looksLikeColdStart) throw error;
+
+      await new Promise((resolve) => window.setTimeout(resolve, 800));
+      return loader();
+    }
+  };
+
   useEffect(() => {
     fallbackRef.current = fallbackData;
   }, [fallbackData]);
@@ -16,7 +30,7 @@ export const useApiResource = (loader, fallbackData = []) => {
     setError("");
 
     try {
-      const result = await loader();
+      const result = await loadWithColdStartRetry();
       setData(result ?? fallbackRef.current);
       setIsFallback(false);
     } catch (requestError) {
