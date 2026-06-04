@@ -763,7 +763,6 @@ button {
   gap: 14px;
 }
 
-<<<<<<< HEAD
 fieldset.auth-form-grid {
   min-width: 0;
   margin: 0;
@@ -801,13 +800,6 @@ fieldset.auth-form-grid:disabled select {
 }
 
 .auth-form .field span {
-=======
-.auth-form > .field {
-  position: relative;
-}
-
-.auth-form > .field span {
->>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
   position: absolute;
   width: 1px;
   height: 1px;
@@ -815,36 +807,25 @@ fieldset.auth-form-grid:disabled select {
   clip: rect(0 0 0 0);
 }
 
-<<<<<<< HEAD
 .auth-form .field input,
 .auth-form .field select {
   min-height: 50px;
   padding-left: 16px;
   padding-right: 16px;
-=======
-.auth-form > .field input {
-  min-height: 50px;
-  padding-left: 52px;
-  padding-right: 46px;
->>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
   color: #f8fbff;
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(137, 160, 190, 0.28);
 }
 
-<<<<<<< HEAD
 .auth-form > .field input {
   padding-left: 52px;
   padding-right: 46px;
 }
 
-=======
->>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 .auth-form > .field input::placeholder {
   color: #8fa0b5;
 }
 
-<<<<<<< HEAD
 .auth-inline-link {
   display: inline-flex;
   align-items: center;
@@ -892,8 +873,6 @@ fieldset.auth-form-grid:disabled select {
   color: #92e7c6;
 }
 
-=======
->>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 .field-icon,
 .field-trailing-icon,
 .field-trailing-button {
@@ -949,7 +928,6 @@ fieldset.auth-form-grid:disabled select {
   border-radius: 8px;
 }
 
-<<<<<<< HEAD
 .form-alert {
   margin: 18px 24px 0;
   padding: 12px 14px;
@@ -1251,8 +1229,6 @@ body.modal-open {
   background: rgba(255, 255, 255, 0.07);
 }
 
-=======
->>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 .auth-form .primary-button {
   min-height: 54px;
   margin-top: 4px;
@@ -1292,7 +1268,6 @@ body.modal-open {
   font-weight: 650;
 }
 
-<<<<<<< HEAD
 .google-button-shell {
   display: flex;
   align-items: center;
@@ -1352,8 +1327,6 @@ body.modal-open {
   grid-template-columns: 1fr;
 }
 
-=======
->>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 .google-mark {
   display: inline-flex;
   align-items: center;
@@ -1984,7 +1957,6 @@ body.modal-open {
   background: linear-gradient(135deg, #4d8dff, #2672ea);
   border: 1px solid rgba(119, 168, 255, 0.34);
   box-shadow: 0 16px 34px rgba(38, 114, 234, 0.22);
-<<<<<<< HEAD
 }
 
 .primary-button:disabled,
@@ -2001,15 +1973,12 @@ body.modal-open {
   to {
     transform: rotate(360deg);
   }
-=======
->>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 }
 
 .secondary-button {
   color: var(--text-soft);
   background: rgba(255, 255, 255, 0.055);
   border: 1px solid rgba(137, 160, 190, 0.2);
-<<<<<<< HEAD
 }
 
 .link-button {
@@ -2030,8 +1999,6 @@ body.modal-open {
 
 .strong-link {
   font-weight: 800;
-=======
->>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 }
 
 .table-wrap {
@@ -2254,7 +2221,6 @@ tr:last-child td {
   border: 1px solid rgba(137, 160, 190, 0.18);
   border-radius: 8px;
   background: var(--map-bg);
-<<<<<<< HEAD
 }
 
 .drone-map-marker {
@@ -2383,8 +2349,6 @@ tr:last-child td {
   color: var(--muted);
   font-size: 12px;
   text-transform: capitalize;
-=======
->>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 }
 
 .map-status {
@@ -2794,7 +2758,6 @@ tr:last-child td {
   outline: 0;
 }
 
-<<<<<<< HEAD
 .field input[type="date"] {
   color-scheme: dark;
   min-width: 0;
@@ -2813,8 +2776,6 @@ tr:last-child td {
   filter: none;
 }
 
-=======
->>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
 .field textarea {
   min-height: 112px;
   padding-top: 12px;
@@ -3294,7 +3255,6 @@ tr:last-child td {
     margin: 18px;
   }
 
-<<<<<<< HEAD
   .live-drone-list {
     padding: 0 18px 14px;
   }
@@ -3304,8 +3264,6 @@ tr:last-child td {
     grid-template-columns: 1fr;
   }
 
-=======
->>>>>>> a42502c6d700f2717489ee870fd450c6431788f9
   .map-legend {
     padding: 0 18px 18px;
   }
