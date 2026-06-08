@@ -6,14 +6,16 @@ import MetricCard from "../../components/common/MetricCard";
 import SectionHeader from "../../components/common/SectionHeader";
 import StatusBadge from "../../components/common/StatusBadge";
 import { incidents } from "../../data/droneOpsData";
+import { hasClientPermission } from "../../features/auth/accessControl";
 import { useApiResource } from "../../hooks/useApiResource";
 import { useFleetSearch } from "../../hooks/useFleetSearch";
 import { droneOpsApi } from "../../services/droneOpsApi";
 import IncidentForm from "./components/IncidentForm";
 
-const Incidents = ({ searchValue }) => {
+const Incidents = ({ searchValue, user }) => {
   const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [toast, setToast] = useState(null);
+  const canCreateIncident = hasClientPermission(user, "incidents:manage") || hasClientPermission(user, "incidents:create");
   const loadIncidents = useCallback(() => droneOpsApi.incidents.list(), []);
   const { data: apiIncidents, error, isLoading, isFallback, refresh } = useApiResource(loadIncidents, incidents);
   const normalizedIncidents = useMemo(() => apiIncidents.map(normalizeIncident), [apiIncidents]);
@@ -72,7 +74,7 @@ const Incidents = ({ searchValue }) => {
         <SectionHeader
           title="Incident Register"
           description="Actionable operational incidents with ownership, severity, source, and latest status."
-          action={
+          action={canCreateIncident ? (
             <ActionButton
               icon={Plus}
               variant="primary"
@@ -80,7 +82,7 @@ const Incidents = ({ searchValue }) => {
             >
               {showIncidentForm ? "Hide Form" : "Log Incident"}
             </ActionButton>
-          }
+          ) : null}
         />
         <DataTable
           columns={columns}
@@ -89,7 +91,7 @@ const Incidents = ({ searchValue }) => {
           emptyMessage={isLoading ? "Loading incident records..." : "No incidents logged yet."}
         />
       </div>
-      {showIncidentForm && (
+      {canCreateIncident && showIncidentForm && (
         <IncidentForm
           onCreated={(incident) => {
             refresh();

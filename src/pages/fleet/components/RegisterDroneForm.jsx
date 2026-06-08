@@ -1,4 +1,4 @@
-import { CalendarClock, ClipboardCheck, Cpu, FileCheck2, Plane, Save, X } from "lucide-react";
+import { CalendarClock, ClipboardCheck, Cpu, FileCheck2, Plane, RadioTower, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import ActionButton from "../../../components/common/ActionButton";
@@ -20,6 +20,7 @@ const certificationStatuses = [
   "GROUNDED_PENDING_INSPECTION"
 ];
 const batteryTypes = ["Li-ion 6S", "LiPo 4S", "LiPo 6S", "Smart battery pack", "Emergency battery pack"];
+const telemetryProviders = ["NONE", "GENERIC_REST", "DJI", "AUTEL", "MAVLINK"];
 
 const initialForm = {
   droneCode: "",
@@ -37,13 +38,18 @@ const initialForm = {
   certificationStatus: "CERTIFIED",
   certificationReference: "",
   certificationExpiry: "",
-  remoteId: ""
+  remoteId: "",
+  telemetryProvider: "NONE",
+  externalDeviceId: "",
+  telemetryUrl: ""
 };
 
 const RegisterDroneForm = ({ onRegistered, onCancel }) => {
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -70,11 +76,22 @@ const RegisterDroneForm = ({ onRegistered, onCancel }) => {
 
     try {
       const registeredDrone = await droneOpsApi.drones.create({
-        ...form,
+        droneCode: form.droneCode,
+        model: form.model,
+        manufacturer: form.manufacturer,
+        serialNumber: form.serialNumber,
+        batteryType: form.batteryType,
+        firmwareVersion: form.firmwareVersion,
+        status: form.status,
         flightHours: Number(form.flightHours || 0),
-        purchaseDate: form.purchaseDate ? new Date(form.purchaseDate).toISOString() : undefined
+        purchaseDate: form.purchaseDate ? new Date(form.purchaseDate).toISOString() : undefined,
+        certificationStatus: form.certificationStatus,
+        telemetryProvider: form.telemetryProvider,
+        externalDeviceId: form.externalDeviceId || undefined,
+        connectorConfig: form.telemetryUrl ? { telemetryUrl: form.telemetryUrl } : undefined
       });
       setForm(initialForm);
+      setIsConfirmed(false);
       onRegistered?.({
         ...registeredDrone,
         droneCode: registeredDrone.droneCode ?? form.droneCode
@@ -132,6 +149,41 @@ const RegisterDroneForm = ({ onRegistered, onCancel }) => {
               <Field label="Remote ID" value={form.remoteId} onChange={(value) => updateField("remoteId", value)} placeholder="RID-DRN-007" />
             </FormSection>
 
+            <section className="form-section advanced-form-section">
+              <button className="advanced-toggle" type="button" onClick={() => setShowAdvanced((current) => !current)} aria-expanded={showAdvanced}>
+                <span>
+                  <RadioTower size={18} />
+                  <strong>Advanced Telemetry Connector</strong>
+                </span>
+                <small>{showAdvanced ? "Hide" : "Configure"}</small>
+              </button>
+              <p className="advanced-note">
+                DroneOps can infer the provider from manufacturer. Use this only when a vendor API or device identity must be configured.
+              </p>
+              {showAdvanced && (
+                <div className="form-grid advanced-grid">
+                  <SelectField label="Telemetry Provider" value={form.telemetryProvider} onChange={(value) => updateField("telemetryProvider", value)} options={telemetryProviders} />
+                  {form.telemetryProvider !== "NONE" && (
+                    <Field
+                      label={getExternalIdLabel(form.telemetryProvider)}
+                      value={form.externalDeviceId}
+                      onChange={(value) => updateField("externalDeviceId", value)}
+                      placeholder={getExternalIdPlaceholder(form.telemetryProvider)}
+                    />
+                  )}
+                  {form.telemetryProvider === "GENERIC_REST" && (
+                    <Field
+                      label="Vendor Telemetry URL"
+                      value={form.telemetryUrl}
+                      onChange={(value) => updateField("telemetryUrl", value)}
+                      placeholder="https://vendor.example.com/live/drone-id"
+                    />
+                  )}
+                  <RuleItem title="How it works" text="The provider and external ID tell the backend which company connector should fetch live telemetry for this drone." />
+                </div>
+              )}
+            </section>
+
             <FormSection icon={ClipboardCheck} title="Ready To Fly">
               <RuleItem title="Inspection" text="The drone has been checked before adding it to the fleet." />
               <RuleItem title="Battery" text="Battery type and firmware details are up to date." />
@@ -143,12 +195,17 @@ const RegisterDroneForm = ({ onRegistered, onCancel }) => {
 
         <div className="modal-footer">
           <label className="checkbox-row">
-            <input type="checkbox" />
-            <span>Pre-flight inspection completed and aircraft is safe to assign.</span>
+            <input
+              type="checkbox"
+              checked={isConfirmed}
+              onChange={(event) => setIsConfirmed(event.target.checked)}
+              required
+            />
+            <span>I confirm the drone information is correct and the aircraft is safe to add to the fleet.</span>
           </label>
           <div className="form-actions">
             <ActionButton onClick={onCancel}>Cancel</ActionButton>
-            <ActionButton icon={Save} variant="primary" type="submit" disabled={isSaving}>
+            <ActionButton icon={Save} variant="primary" type="submit" disabled={isSaving || !isConfirmed}>
               {isSaving ? "Registering" : "Register Drone"}
             </ActionButton>
           </div>
@@ -202,6 +259,20 @@ const RuleItem = ({ title, text }) => {
       <span>{text}</span>
     </div>
   );
+};
+
+const getExternalIdLabel = (provider) => {
+  if (provider === "MAVLINK") return "MAVLink System ID";
+  if (provider === "GENERIC_REST") return "Vendor Drone ID";
+  return "Vendor Serial / Device ID";
+};
+
+const getExternalIdPlaceholder = (provider) => {
+  if (provider === "DJI") return "DJI serial or device ID";
+  if (provider === "AUTEL") return "Autel serial or device ID";
+  if (provider === "MAVLINK") return "PX4/ArduPilot system ID";
+  if (provider === "GENERIC_REST") return "Vendor drone identifier";
+  return "External drone identifier";
 };
 
 export default RegisterDroneForm;

@@ -8,6 +8,7 @@ const IncidentWatch = ({ incidents }) => {
         <h3>Incident Watch</h3>
         <StatusBadge>Open</StatusBadge>
       </div>
+      {incidents.length === 0 && <p className="empty-state">No open incidents.</p>}
       {incidents.map((incident) => (
         <article className="incident-card" key={incident.id}>
           <AlertTriangle size={18} />

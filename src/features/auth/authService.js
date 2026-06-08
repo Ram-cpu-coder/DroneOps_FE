@@ -98,6 +98,7 @@ export const authService = {
       password: payload.password,
       organisationName: payload.organization,
       industry: payload.industry,
+      profileImageUrl: payload.profileImageUrl,
       role: apiRoleByRoleId[payload.role] ?? "OPERATIONS_MANAGER"
     });
 
@@ -115,6 +116,12 @@ export const authService = {
 
   async requestPasswordReset(email) {
     return apiClient.post("/auth/forgot-password", { email });
+  },
+
+  async uploadProfileImage(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiClient.upload("/auth/profile-image", formData);
   },
 
   async logout() {

@@ -12,7 +12,7 @@ import {
   signupRequested,
   verificationCompleted
 } from "./features/auth/authSlice";
-import { routeChanged, searchChanged, themeModeChanged, uiReset } from "./features/ui/uiSlice";
+import { routeActionCleared, routeChanged, searchChanged, themeModeChanged, uiReset } from "./features/ui/uiSlice";
 import AuthShell from "./pages/auth/AuthShell";
 import GoogleProfileSetup from "./pages/auth/GoogleProfileSetup";
 import Login from "./pages/auth/Login";
@@ -24,7 +24,7 @@ import { appRoutes } from "./routes/appRoutes";
 const App = () => {
   const dispatch = useDispatch();
   const { session, authView, pendingVerification, pendingGoogleProfile, error, passwordReset, isLoading } = useSelector((state) => state.auth);
-  const { activeRoute, globalSearch, themeMode } = useSelector((state) => state.ui);
+  const { activeRoute, globalSearch, pendingRouteAction, themeMode } = useSelector((state) => state.ui);
 
   const accessibleRoutes = useMemo(() => {
     if (!session?.user) return [];
@@ -81,7 +81,10 @@ const App = () => {
 
   if (!session?.user) {
     return (
-      <AuthShell>
+      <AuthShell
+        themeMode={themeMode}
+        onThemeModeChange={(mode) => dispatch(themeModeChanged(mode))}
+      >
         {authView === "login" && (
           <Login
             error={error}
@@ -147,6 +150,8 @@ const App = () => {
         <ActivePage
           searchValue={globalSearch}
           onNavigate={(routeId) => dispatch(routeChanged(routeId))}
+          pendingRouteAction={pendingRouteAction}
+          onRouteActionHandled={() => dispatch(routeActionCleared())}
           user={session.user}
         />
       )}

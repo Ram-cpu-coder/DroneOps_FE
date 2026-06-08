@@ -25,6 +25,7 @@ const MissionForm = ({ onCreated, onCancel }) => {
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(false);
   const loadDrones = useCallback(() => droneOpsApi.drones.list(), []);
   const loadUsers = useCallback(() => droneOpsApi.users.list(), []);
   const { data: drones } = useApiResource(loadDrones, []);
@@ -78,6 +79,7 @@ const MissionForm = ({ onCreated, onCancel }) => {
       });
 
       setForm(initialForm);
+      setIsConfirmed(false);
       onCreated?.({
         ...mission,
         missionCode: mission.missionCode ?? form.missionCode
@@ -149,12 +151,17 @@ const MissionForm = ({ onCreated, onCancel }) => {
 
         <div className="modal-footer">
           <label className="checkbox-row">
-            <input type="checkbox" />
-            <span>Mission details are ready to save.</span>
+            <input
+              type="checkbox"
+              checked={isConfirmed}
+              onChange={(event) => setIsConfirmed(event.target.checked)}
+              required
+            />
+            <span>I confirm the mission details, assigned drone, and pilot information are correct.</span>
           </label>
           <div className="form-actions">
             <ActionButton onClick={onCancel}>Cancel</ActionButton>
-            <ActionButton icon={Save} variant="primary" type="submit" disabled={isSaving}>
+            <ActionButton icon={Save} variant="primary" type="submit" disabled={isSaving || !isConfirmed}>
               {isSaving ? "Creating" : "Create Mission"}
             </ActionButton>
           </div>

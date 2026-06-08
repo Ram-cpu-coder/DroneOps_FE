@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { UserPlus } from "lucide-react";
+import { Eye, EyeOff, ImagePlus, UserPlus } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 import { userRoles } from "../../data/authData";
+import { authService } from "../../features/auth/authService";
 
 const passwordRules = [
   { id: "length", label: "At least 8 characters", test: (value) => value.length >= 8 },
@@ -18,8 +19,10 @@ const Signup = ({ error, isLoading, onSignup, onAuthViewChange }) => {
     password: "",
     organization: "",
     role: "operations_manager",
-    profileImage: ""
+    profileImageUrl: ""
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [imageUpload, setImageUpload] = useState({ isUploading: false, fileName: "", error: "" });
   const passwordStatus = passwordRules.map((rule) => ({ ...rule, isValid: rule.test(form.password) }));
   const isPasswordValid = passwordStatus.every((rule) => rule.isValid);
 
@@ -30,15 +33,30 @@ const Signup = ({ error, isLoading, onSignup, onAuthViewChange }) => {
     onSignup(form);
   };
 
+  const handleProfileImageChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImageUpload({ isUploading: true, fileName: file.name, error: "" });
+    try {
+      const result = await authService.uploadProfileImage(file);
+      setForm((current) => ({ ...current, profileImageUrl: result.profileImageUrl }));
+      setImageUpload({ isUploading: false, fileName: file.name, error: "" });
+    } catch (uploadError) {
+      setForm((current) => ({ ...current, profileImageUrl: "" }));
+      setImageUpload({ isUploading: false, fileName: "", error: uploadError.message });
+    }
+  };
+
   return (
-    <form className="auth-form" onSubmit={handleSubmit}>
+    <form className="auth-form signup-form" onSubmit={handleSubmit}>
       <div>
         <h2>Create account</h2>
         <p>Register with identity, organization details, role, and optional profile image reference.</p>
       </div>
       {error && <div className="auth-alert">{error}</div>}
       <fieldset className="auth-form-grid" disabled={isLoading}>
-        <label className="field">
+        <label className="field wide-field">
           <span>Name</span>
           <input
             value={form.name}
@@ -47,7 +65,7 @@ const Signup = ({ error, isLoading, onSignup, onAuthViewChange }) => {
             required
           />
         </label>
-        <label className="field">
+        <label className="field wide-field">
           <span>Email</span>
           <input
             type="email"
@@ -57,15 +75,23 @@ const Signup = ({ error, isLoading, onSignup, onAuthViewChange }) => {
             required
           />
         </label>
-        <label className="field password-field">
+        <label className="field password-field wide-field">
           <span>Password</span>
           <input
-            type="password"
+            type={showPassword ? "text" : "password"}
             value={form.password}
             onChange={(event) => setForm({ ...form, password: event.target.value })}
             placeholder="Strong password"
             required
           />
+          <button
+            className="field-trailing-button"
+            type="button"
+            onClick={() => setShowPassword((current) => !current)}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
         </label>
         <div className="password-rules" aria-live="polite">
           {passwordStatus.map((rule) => (
@@ -74,7 +100,7 @@ const Signup = ({ error, isLoading, onSignup, onAuthViewChange }) => {
             </span>
           ))}
         </div>
-        <label className="field">
+        <label className="field wide-field">
           <span>Organization</span>
           <input
             value={form.organization}
@@ -95,21 +121,23 @@ const Signup = ({ error, isLoading, onSignup, onAuthViewChange }) => {
             ))}
           </select>
         </label>
-        <label className="field">
-          <span>Profile Image URL</span>
-          <input
-            value={form.profileImage}
-            onChange={(event) => setForm({ ...form, profileImage: event.target.value })}
-            placeholder="Profile image URL (optional)"
-          />
+        <label className="upload-field wide-field">
+          <input type="file" accept="image/*" onChange={handleProfileImageChange} disabled={isLoading || imageUpload.isUploading} />
+          <span><ImagePlus size={18} /> Upload profile image</span>
+          <small>
+            {imageUpload.isUploading
+              ? "Uploading to Cloudinary..."
+              : imageUpload.fileName || "Optional PNG, JPG, or WebP"}
+          </small>
         </label>
+        {imageUpload.error && <div className="auth-alert wide-field">{imageUpload.error}</div>}
       </fieldset>
       {isLoading && (
         <div className="auth-progress" role="status">
           Creating your DroneOps account and preparing verification...
         </div>
       )}
-      <ActionButton icon={UserPlus} variant="primary" type="submit" disabled={isLoading || !isPasswordValid} isLoading={isLoading}>
+      <ActionButton icon={UserPlus} variant="primary" type="submit" disabled={isLoading || imageUpload.isUploading || !isPasswordValid} isLoading={isLoading}>
         {isLoading ? "Creating account..." : "Create account"}
       </ActionButton>
       <div className="auth-switch">

@@ -28,7 +28,7 @@ const loadGoogleIdentity = () => {
 };
 
 const Login = ({ error, isLoading, onLogin, onGoogleLogin, onAuthViewChange }) => {
-  const [form, setForm] = useState({ email: "ops@droneops.test", password: "Password123!" });
+  const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [googleError, setGoogleError] = useState("");
   const googleButtonRef = useRef(null);
@@ -44,6 +44,8 @@ const Login = ({ error, isLoading, onLogin, onGoogleLogin, onAuthViewChange }) =
 
         google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
+          use_fedcm_for_button: false,
+          use_fedcm_for_prompt: false,
           callback: ({ credential }) => {
             if (credential) onGoogleLogin(credential);
           }
@@ -51,13 +53,13 @@ const Login = ({ error, isLoading, onLogin, onGoogleLogin, onAuthViewChange }) =
 
         googleButtonRef.current.innerHTML = "";
         google.accounts.id.renderButton(googleButtonRef.current, {
-          theme: "outline",
+          theme: "filled_black",
           size: "large",
           type: "standard",
-          shape: "rectangular",
+          shape: "pill",
           text: "signin_with",
           logo_alignment: "center",
-          width: Math.min(400, googleButtonRef.current.offsetWidth || 400)
+          width: Math.min(380, googleButtonRef.current.offsetWidth || 380)
         });
       })
       .catch((googleScriptError) => {

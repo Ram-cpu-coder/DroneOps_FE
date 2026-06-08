@@ -1,8 +1,9 @@
-import { lazy, Suspense, useCallback, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, AlertTriangle, MapPin, Plane } from "lucide-react";
+import { useDispatch } from "react-redux";
 import MetricCard from "../../components/common/MetricCard";
-import { incidents, missions } from "../../data/droneOpsData";
 import { hasClientPermission } from "../../features/auth/accessControl";
+import { routeActionRequested, routeChanged } from "../../features/ui/uiSlice";
 import { useApiResource } from "../../hooks/useApiResource";
 import { droneOpsApi } from "../../services/droneOpsApi";
 import ActivityFeed from "./components/ActivityFeed";
@@ -14,33 +15,60 @@ import DroneProfileDialog from "../fleet/components/DroneProfileDialog";
 
 const metricIcons = [Plane, Activity, AlertTriangle, MapPin];
 const GeospatialMap = lazy(() => import("../../components/maps/GeospatialMap"));
+const emptyDashboardData = {
+  summary: null,
+  drones: [],
+  missions: [],
+  incidents: [],
+  reports: [],
+  maintenance: []
+};
 
 const Dashboard = ({ searchValue, user }) => {
+  const dispatch = useDispatch();
   const [selectedDrone, setSelectedDrone] = useState(null);
+  const [showLivePanels, setShowLivePanels] = useState(false);
   const canRead = useCallback((permission) => hasClientPermission(user, permission), [user]);
-  const loadSummary = useCallback(() => droneOpsApi.reports.summary(), []);
-  const loadDrones = useCallback(() => {
-    if (!canRead("fleet")) return Promise.resolve([]);
-    return droneOpsApi.drones.list();
-  }, [canRead]);
-  const loadTelemetry = useCallback(() => droneOpsApi.telemetry.live(), []);
-  const loadActivitySources = useCallback(async () => {
-    const [missionsResult, incidentsResult, reportsResult] = await Promise.all([
-      canRead("missions") ? droneOpsApi.missions.list().catch(() => []) : [],
-      canRead("incidents") ? droneOpsApi.incidents.list().catch(() => []) : [],
-      canRead("reports") ? droneOpsApi.reports.list().catch(() => []) : []
+  const loadTelemetry = useCallback(() => {
+    if (!showLivePanels || !canRead("telemetry:read")) return Promise.resolve([]);
+    return droneOpsApi.telemetry.live();
+  }, [canRead, showLivePanels]);
+  const loadDashboardData = useCallback(async () => {
+    const [summaryResult, dronesResult, missionsResult, incidentsResult, reportsResult, maintenanceResult] = await Promise.all([
+      canRead("reports:read") ? droneOpsApi.reports.summary().catch(() => null) : null,
+      canRead("fleet") || canRead("drones:read") ? droneOpsApi.drones.list().catch(() => []) : [],
+      canRead("missions") || canRead("missions:read") ? droneOpsApi.missions.list().catch(() => []) : [],
+      canRead("incidents") || canRead("incidents:read") ? droneOpsApi.incidents.list().catch(() => []) : [],
+      canRead("reports") || canRead("reports:read") ? droneOpsApi.reports.list().catch(() => []) : [],
+      canRead("maintenance:manage") ? droneOpsApi.maintenance.list().catch(() => []) : []
     ]);
 
-    return { missions: missionsResult, incidents: incidentsResult, reports: reportsResult };
+    return {
+      summary: summaryResult,
+      drones: dronesResult,
+      missions: missionsResult,
+      incidents: incidentsResult,
+      reports: reportsResult,
+      maintenance: maintenanceResult
+    };
   }, [canRead]);
 
-  const { data: summary, isLoading: isSummaryLoading, error: summaryError } = useApiResource(loadSummary, null);
-  const { data: apiDrones, isLoading: isDronesLoading, refresh: refreshDrones } = useApiResource(loadDrones, []);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setShowLivePanels(true), 1200);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  const { data: dashboardData, isLoading: isDashboardLoading, error: dashboardError, refresh: refreshDashboard } = useApiResource(loadDashboardData, emptyDashboardData);
   const { data: telemetryRows } = useApiResource(loadTelemetry, []);
-  const { data: activitySources, isLoading: isActivityLoading } = useApiResource(loadActivitySources, { missions: [], incidents: [], reports: [] });
+  const summary = dashboardData?.summary;
+  const apiDrones = dashboardData?.drones ?? [];
+  const apiMissions = dashboardData?.missions ?? [];
+  const apiIncidents = dashboardData?.incidents ?? [];
+  const apiReports = dashboardData?.reports ?? [];
+  const apiMaintenance = dashboardData?.maintenance ?? [];
 
   const dashboardMetrics = useMemo(() => {
-    if (isSummaryLoading && !summary) {
+    if (isDashboardLoading && !apiDrones.length && !apiMissions.length && !apiIncidents.length) {
       return [
         { label: "Total Drones", value: "...", delta: "Loading backend fleet records", tone: "blue" },
         { label: "Active Missions", value: "...", delta: "Loading mission records", tone: "green" },
@@ -49,43 +77,50 @@ const Dashboard = ({ searchValue, user }) => {
       ];
     }
 
-    if (!summary) {
-      return [
-        { label: "Total Drones", value: "0", delta: summaryError ? "Backend summary unavailable" : "No fleet records yet", tone: "blue" },
-        { label: "Active Missions", value: "0", delta: "No active mission records", tone: "green" },
-        { label: "Open Alerts", value: "0", delta: "No open incidents", tone: "red" },
-        { label: "Maintenance", value: "0", delta: "No pending maintenance", tone: "purple" }
-      ];
-    }
+    const activeMissions = apiMissions.filter((mission) => ["ACTIVE", "IN_MISSION"].includes(mission.status)).length;
+    const openIncidents = apiIncidents.filter((incident) => !["CLOSED", "RESOLVED"].includes(incident.status)).length;
+    const pendingMaintenance = apiMaintenance.length
+      ? apiMaintenance.filter((item) => ["SCHEDULED", "OVERDUE", "IN_PROGRESS"].includes(item.status)).length
+      : summary?.pendingMaintenance ?? 0;
 
     return [
-      { label: "Total Drones", value: String(summary.drones), delta: "From backend fleet records", tone: "blue" },
-      { label: "Active Missions", value: String(summary.missions), delta: "Mission records in PostgreSQL", tone: "green" },
-      { label: "Open Alerts", value: String(summary.openIncidents), delta: "Open incident count", tone: "red" },
-      { label: "Maintenance", value: String(summary.pendingMaintenance), delta: "Pending maintenance records", tone: "purple" }
+      { label: "Total Drones", value: String(apiDrones.length || summary?.drones || 0), delta: "From backend fleet records", tone: "blue" },
+      { label: "Active Missions", value: String(activeMissions), delta: `${apiMissions.length} mission records loaded`, tone: "green" },
+      { label: "Open Alerts", value: String(openIncidents), delta: "Open incident records", tone: "red" },
+      { label: "Maintenance", value: String(pendingMaintenance), delta: apiMaintenance.length ? "Maintenance records loaded" : "From backend summary", tone: "purple" }
     ];
-  }, [isSummaryLoading, summary, summaryError]);
+  }, [apiDrones, apiIncidents, apiMaintenance, apiMissions, isDashboardLoading, summary]);
 
   const normalizedDrones = useMemo(() => apiDrones.map((drone) => normalizeDrone(drone, telemetryRows)), [apiDrones, telemetryRows]);
   const filteredDrones = useFleetSearch(normalizedDrones, searchValue);
   const recentActivity = useMemo(() => buildRecentActivity({
     drones: apiDrones,
-    missions: activitySources?.missions ?? [],
-    incidents: activitySources?.incidents ?? [],
-    reports: activitySources?.reports ?? []
-  }), [activitySources, apiDrones]);
+    missions: apiMissions,
+    incidents: apiIncidents,
+    reports: apiReports
+  }), [apiDrones, apiIncidents, apiMissions, apiReports]);
+  const dashboardMissions = useMemo(
+    () => apiMissions.map(normalizeMissionCard).slice(0, 3),
+    [apiMissions]
+  );
+
+  const handleNewMission = () => {
+    dispatch(routeActionRequested({ routeId: "missions", action: "create" }));
+    dispatch(routeChanged("missions"));
+  };
 
   return (
     <>
       {selectedDrone && (
         <DroneProfileDialog
           drone={selectedDrone}
+          canManage={canRead("drones:manage")}
           onUpdated={() => {
-            refreshDrones();
+            refreshDashboard();
             setSelectedDrone(null);
           }}
           onDeleted={() => {
-            refreshDrones();
+            refreshDashboard();
             setSelectedDrone(null);
           }}
           onClose={() => setSelectedDrone(null)}
@@ -99,13 +134,25 @@ const Dashboard = ({ searchValue, user }) => {
       </section>
 
       <section className="content-grid dashboard-grid">
-        <FleetOverviewTable drones={filteredDrones.slice(0, 5)} isLoading={isDronesLoading} onDroneSelect={setSelectedDrone} />
-        <Suspense fallback={<div className="panel map-panel map-loading">Loading telemetry map...</div>}>
-          <GeospatialMap />
-        </Suspense>
-        <MissionQueue missions={missions.slice(0, 3)} />
-        <ActivityFeed activity={recentActivity} isLoading={isActivityLoading} />
-        <IncidentWatch incidents={incidents.slice(0, 2)} />
+        {dashboardError && <div className="auth-alert dashboard-alert">Some dashboard data could not be loaded: {dashboardError}</div>}
+        <FleetOverviewTable drones={filteredDrones.slice(0, 5)} isLoading={isDashboardLoading} onDroneSelect={setSelectedDrone} />
+        {showLivePanels && canRead("telemetry:read") ? (
+          <Suspense fallback={<div className="panel map-panel map-loading">Loading telemetry map...</div>}>
+            <GeospatialMap />
+          </Suspense>
+        ) : (
+          <div className="panel map-panel map-loading">
+            {canRead("telemetry:read") ? "Preparing telemetry map..." : "Telemetry access is not enabled for this role."}
+          </div>
+        )}
+        <MissionQueue
+          missions={dashboardMissions}
+          canCreate={canRead("missions:manage")}
+          isLoading={isDashboardLoading}
+          onCreateMission={handleNewMission}
+        />
+        <ActivityFeed activity={recentActivity} isLoading={isDashboardLoading} />
+        <IncidentWatch incidents={apiIncidents.map(normalizeIncidentCard).slice(0, 2)} />
       </section>
     </>
   );
@@ -132,6 +179,24 @@ const normalizeDrone = (drone, telemetryRows = []) => {
 const findTelemetry = (drone, telemetryRows = []) => {
   return telemetryRows.find((row) => row.drone?.id === drone.id || row.drone?.droneCode === drone.droneCode)?.telemetry;
 };
+
+const normalizeMissionCard = (mission) => ({
+  id: mission.id,
+  name: mission.name ?? mission.missionCode ?? "Untitled mission",
+  drone: mission.drone?.droneCode ?? mission.drone ?? "Unassigned drone",
+  eta: mission.eta ?? (mission.plannedStartAt ? new Date(mission.plannedStartAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Not scheduled"),
+  progress: Number(mission.progress ?? (mission.status === "COMPLETED" ? 100 : mission.status === "ACTIVE" ? 55 : 0)),
+  risk: mission.riskAssessment?.level ?? mission.risk ?? "Pending"
+});
+
+const normalizeIncidentCard = (incident) => ({
+  id: incident.id,
+  title: incident.title ?? incident.incidentCode ?? "Untitled incident",
+  place: incident.location ?? incident.drone?.droneCode ?? "Location not recorded",
+  time: incident.updatedAt ? formatRelativeTime(incident.updatedAt) : "Recently updated",
+  status: incident.status,
+  severity: incident.severity
+});
 
 const buildRecentActivity = ({ drones = [], missions = [], incidents = [], reports = [] }) => {
   const items = [
