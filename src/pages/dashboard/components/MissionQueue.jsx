@@ -4,16 +4,22 @@ import ProgressBar from "../../../components/common/ProgressBar";
 import SectionHeader from "../../../components/common/SectionHeader";
 import StatusBadge from "../../../components/common/StatusBadge";
 
-const MissionQueue = ({ missions }) => {
+const MissionQueue = ({ canCreate = false, isLoading = false, missions = [], onCreateMission }) => {
   return (
     <div className="panel missions-panel">
       <SectionHeader
         title="Mission Queue"
         description="Current field work and estimated completion."
-        action={<ActionButton icon={Plus} variant="primary">New Mission</ActionButton>}
+        action={canCreate ? (
+          <ActionButton icon={Plus} variant="primary" onClick={onCreateMission}>
+            New Mission
+          </ActionButton>
+        ) : null}
       />
       <div className="mission-list">
-        {missions.map((mission) => (
+        {isLoading && <p className="empty-state">Loading mission queue...</p>}
+        {!isLoading && missions.length === 0 && <p className="empty-state">No active or planned missions yet.</p>}
+        {!isLoading && missions.map((mission) => (
           <article className="mission-row" key={mission.id}>
             <div className="mission-icon"><Route size={19} /></div>
             <div className="mission-main">

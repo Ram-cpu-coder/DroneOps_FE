@@ -1,7 +1,14 @@
+import { Moon, Monitor, Sun } from "lucide-react";
 import DroneOpsVantaScene from "../../components/visuals/DroneOpsVantaScene";
 import DroneLogo from "../../components/common/DroneLogo";
 
-const AuthShell = ({ children }) => {
+const themeOptions = [
+  { id: "default", label: "Default", icon: Monitor },
+  { id: "dark", label: "Dark", icon: Moon },
+  { id: "light", label: "Light", icon: Sun }
+];
+
+const AuthShell = ({ children, themeMode, onThemeModeChange }) => {
   return (
     <main className="auth-shell">
       <DroneOpsVantaScene />
@@ -37,6 +44,25 @@ const AuthShell = ({ children }) => {
         </div>
       </section>
       <section className="auth-panel">
+        <div className="theme-switcher auth-theme-switcher" aria-label="Theme mode">
+          {themeOptions.map((option) => {
+            const Icon = option.icon;
+            const isActive = themeMode === option.id;
+            return (
+              <button
+                key={option.id}
+                className={isActive ? "active" : ""}
+                type="button"
+                onClick={() => onThemeModeChange(option.id)}
+                aria-pressed={isActive}
+                title={`${option.label} mode`}
+              >
+                <Icon size={15} />
+                <span>{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
         <div className="auth-brand">
           <DroneLogo />
           <div>

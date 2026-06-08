@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarClock, CheckCircle2, Plus, Route, X } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 import DataTable from "../../components/common/DataTable";
@@ -13,7 +13,7 @@ import { useFleetSearch } from "../../hooks/useFleetSearch";
 import { droneOpsApi } from "../../services/droneOpsApi";
 import MissionForm from "./components/MissionForm";
 
-const Missions = ({ searchValue, user }) => {
+const Missions = ({ searchValue, user, pendingRouteAction, onRouteActionHandled }) => {
   const [showMissionForm, setShowMissionForm] = useState(false);
   const [toast, setToast] = useState(null);
   const canManageMissions = hasClientPermission(user, "missions:manage");
@@ -27,6 +27,12 @@ const Missions = ({ searchValue, user }) => {
   const averageProgress = metricMissions.length
     ? Math.round(metricMissions.reduce((total, mission) => total + Number(mission.progress ?? 0), 0) / metricMissions.length)
     : 0;
+
+  useEffect(() => {
+    if (pendingRouteAction?.routeId !== "missions" || pendingRouteAction.action !== "create") return;
+    if (canManageMissions) setShowMissionForm(true);
+    onRouteActionHandled?.();
+  }, [canManageMissions, onRouteActionHandled, pendingRouteAction]);
 
   const columns = [
     { key: "id", label: "Mission ID", render: (mission) => <strong>{mission.id}</strong> },

@@ -8,18 +8,24 @@ import ProgressBar from "../../components/common/ProgressBar";
 import SectionHeader from "../../components/common/SectionHeader";
 import StatusBadge from "../../components/common/StatusBadge";
 import { drones } from "../../data/droneOpsData";
+import { hasClientPermission } from "../../features/auth/accessControl";
 import { useApiResource } from "../../hooks/useApiResource";
 import { useFleetSearch } from "../../hooks/useFleetSearch";
 import { droneOpsApi } from "../../services/droneOpsApi";
 import DroneProfileDialog from "./components/DroneProfileDialog";
 import RegisterDroneForm from "./components/RegisterDroneForm";
 
-const Fleet = ({ searchValue }) => {
+const Fleet = ({ searchValue, user }) => {
   const [showRegisterDrone, setShowRegisterDrone] = useState(false);
   const [selectedDrone, setSelectedDrone] = useState(null);
   const [toast, setToast] = useState(null);
+  const canManageDrones = hasClientPermission(user, "drones:manage");
+  const canReadTelemetry = hasClientPermission(user, "telemetry:read");
   const loadDrones = useCallback(() => droneOpsApi.drones.list(), []);
-  const loadTelemetry = useCallback(() => droneOpsApi.telemetry.live(), []);
+  const loadTelemetry = useCallback(() => {
+    if (!canReadTelemetry) return Promise.resolve([]);
+    return droneOpsApi.telemetry.live();
+  }, [canReadTelemetry]);
   const { data: apiDrones, error, isLoading, isFallback, refresh } = useApiResource(loadDrones, drones);
   const { data: telemetryRows } = useApiResource(loadTelemetry, []);
   const normalizedDrones = useMemo(() => apiDrones.map((drone) => normalizeDrone(drone, telemetryRows)), [apiDrones, telemetryRows]);
@@ -81,7 +87,7 @@ const Fleet = ({ searchValue }) => {
       </div>
 
       {error && <div className="auth-alert">Backend unavailable: showing fallback fleet data. {error}</div>}
-      {showRegisterDrone && (
+      {canManageDrones && showRegisterDrone && (
         <RegisterDroneForm
           onRegistered={(registeredDrone) => {
             refresh();
@@ -98,6 +104,7 @@ const Fleet = ({ searchValue }) => {
       {selectedDrone && (
         <DroneProfileDialog
           drone={selectedDrone}
+          canManage={canManageDrones}
           onUpdated={(updatedDrone) => {
             refresh();
             setSelectedDrone(null);
@@ -124,7 +131,7 @@ const Fleet = ({ searchValue }) => {
         <SectionHeader
           title="Fleet Inventory"
           description="Operational status, payload, maintenance window, and aircraft readiness."
-          action={
+          action={canManageDrones ? (
             <ActionButton
               icon={Plus}
               variant="primary"
@@ -132,7 +139,7 @@ const Fleet = ({ searchValue }) => {
             >
               {showRegisterDrone ? "Hide Form" : "Register Drone"}
             </ActionButton>
-          }
+          ) : null}
         />
         <DataTable
           columns={columns}

@@ -3,31 +3,85 @@ export const userRoles = [
     id: "operations_manager",
     label: "Operations Manager",
     summary: "Manages missions, assigns drones and pilots, monitors operations, and views fleet status.",
-    permissions: ["dashboard", "fleet", "missions", "missions:manage", "incidents", "reports"]
+    permissions: [
+      "dashboard",
+      "fleet",
+      "drones:read",
+      "drones:manage",
+      "missions",
+      "missions:read",
+      "missions:manage",
+      "telemetry:read",
+      "geofences:read",
+      "incidents",
+      "incidents:read",
+      "reports",
+      "reports:read",
+      "documents:read"
+    ]
   },
   {
     id: "remote_pilot",
     label: "Remote Pilot",
     summary: "Accesses assigned missions, submits flight logs, completes risk assessments, and views telemetry.",
-    permissions: ["dashboard", "missions", "fleet"]
+    permissions: [
+      "dashboard",
+      "fleet",
+      "drones:read",
+      "missions",
+      "missions:read",
+      "telemetry:read",
+      "geofences:read",
+      "incidents:create",
+      "documents:read"
+    ]
   },
   {
     id: "maintenance_coordinator",
     label: "Maintenance Coordinator",
     summary: "Manages maintenance schedules, tracks airworthiness, and logs repairs and inspections.",
-    permissions: ["dashboard", "fleet", "reports"]
+    permissions: [
+      "dashboard",
+      "fleet",
+      "drones:read",
+      "maintenance:manage",
+      "defects:manage",
+      "reports",
+      "reports:read",
+      "documents:read"
+    ]
   },
   {
     id: "safety_officer",
     label: "Safety Officer",
     summary: "Reviews incidents, monitors geofence breaches, accesses hazards, and manages JSA workflows.",
-    permissions: ["dashboard", "incidents", "reports"]
+    permissions: [
+      "dashboard",
+      "incidents",
+      "incidents:read",
+      "incidents:manage",
+      "geofences:read",
+      "geofences:manage",
+      "risk:manage",
+      "telemetry:read",
+      "reports",
+      "reports:read",
+      "documents:read"
+    ]
   },
   {
     id: "compliance_officer",
     label: "Compliance Officer",
     summary: "Manages documentation, generates audit reports, and accesses compliance records.",
-    permissions: ["dashboard", "incidents", "reports"]
+    permissions: [
+      "dashboard",
+      "reports",
+      "reports:read",
+      "reports:manage",
+      "documents:read",
+      "documents:manage",
+      "audit:read"
+    ]
   },
   {
     id: "system_administrator",

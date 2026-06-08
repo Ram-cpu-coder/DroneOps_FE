@@ -34,6 +34,7 @@ const IncidentForm = ({ onCreated, onCancel }) => {
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(false);
   const loadDrones = useCallback(() => droneOpsApi.drones.list(), []);
   const loadMissions = useCallback(() => droneOpsApi.missions.list(), []);
   const loadUsers = useCallback(() => droneOpsApi.users.list(), []);
@@ -84,6 +85,7 @@ const IncidentForm = ({ onCreated, onCancel }) => {
       });
 
       setForm(initialForm);
+      setIsConfirmed(false);
       onCreated?.({
         ...incident,
         incidentCode: incident.incidentCode ?? form.incidentCode
@@ -160,12 +162,17 @@ const IncidentForm = ({ onCreated, onCancel }) => {
 
         <div className="modal-footer">
           <label className="checkbox-row">
-            <input type="checkbox" />
-            <span>Incident details are ready to save.</span>
+            <input
+              type="checkbox"
+              checked={isConfirmed}
+              onChange={(event) => setIsConfirmed(event.target.checked)}
+              required
+            />
+            <span>I confirm the incident details are accurate and ready to submit.</span>
           </label>
           <div className="form-actions">
             <ActionButton onClick={onCancel}>Cancel</ActionButton>
-            <ActionButton icon={Save} variant="primary" type="submit" disabled={isSaving}>
+            <ActionButton icon={Save} variant="primary" type="submit" disabled={isSaving || !isConfirmed}>
               {isSaving ? "Logging" : "Log Incident"}
             </ActionButton>
           </div>
