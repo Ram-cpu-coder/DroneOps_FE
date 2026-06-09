@@ -30,8 +30,8 @@ const initialForm = {
   details: ""
 };
 
-const IncidentForm = ({ onCreated, onCancel }) => {
-  const [form, setForm] = useState(initialForm);
+const IncidentForm = ({ incident = null, mode = "create", onCreated, onUpdated, onCancel }) => {
+  const [form, setForm] = useState(() => toFormState(incident));
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
@@ -46,6 +46,10 @@ const IncidentForm = ({ onCreated, onCancel }) => {
     () => users.filter((user) => ["SAFETY_OFFICER", "MAINTENANCE_COORDINATOR", "OPERATIONS_MANAGER", "SYSTEM_ADMINISTRATOR"].includes(user.role)),
     [users]
   );
+
+  useEffect(() => {
+    setForm(toFormState(incident));
+  }, [incident]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -71,7 +75,7 @@ const IncidentForm = ({ onCreated, onCancel }) => {
     setError("");
 
     try {
-      const incident = await droneOpsApi.incidents.create({
+      const payload = {
         incidentCode: form.incidentCode,
         title: form.title,
         type: form.type,
@@ -82,14 +86,25 @@ const IncidentForm = ({ onCreated, onCancel }) => {
         source: form.source || undefined,
         location: form.location || undefined,
         details: form.details || undefined
-      });
+      };
+
+      const savedIncident = mode === "edit" && incident?.uuid
+        ? await droneOpsApi.incidents.update(incident.uuid, payload)
+        : await droneOpsApi.incidents.create(payload);
 
       setForm(initialForm);
       setIsConfirmed(false);
-      onCreated?.({
-        ...incident,
-        incidentCode: incident.incidentCode ?? form.incidentCode
-      });
+      if (mode === "edit") {
+        onUpdated?.({
+          ...savedIncident,
+          incidentCode: savedIncident.incidentCode ?? form.incidentCode
+        });
+      } else {
+        onCreated?.({
+          ...savedIncident,
+          incidentCode: savedIncident.incidentCode ?? form.incidentCode
+        });
+      }
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -103,8 +118,8 @@ const IncidentForm = ({ onCreated, onCancel }) => {
         <div className="modal-header">
           <div>
             <p className="eyebrow">Incident Register</p>
-            <h2 id="log-incident-title">Log Incident</h2>
-            <p>Record what happened, link the drone, and assign someone to follow up.</p>
+            <h2 id="log-incident-title">{mode === "edit" ? "Update Incident" : "Log Incident"}</h2>
+            <p>{mode === "edit" ? "Adjust the incident details, ownership, and follow-up information." : "Record what happened, link the drone, and assign someone to follow up."}</p>
           </div>
           <button className="icon-button" type="button" onClick={onCancel} aria-label="Close incident form">
             <X size={18} />
@@ -173,7 +188,7 @@ const IncidentForm = ({ onCreated, onCancel }) => {
           <div className="form-actions">
             <ActionButton onClick={onCancel}>Cancel</ActionButton>
             <ActionButton icon={Save} variant="primary" type="submit" disabled={isSaving || !isConfirmed}>
-              {isSaving ? "Logging" : "Log Incident"}
+              {isSaving ? (mode === "edit" ? "Saving" : "Logging") : (mode === "edit" ? "Save Incident" : "Log Incident")}
             </ActionButton>
           </div>
         </div>
@@ -221,5 +236,21 @@ const TextareaField = ({ label, placeholder = "", value, onChange }) => (
     <textarea value={value ?? ""} onChange={(event) => onChange?.(event.target.value)} placeholder={placeholder} rows={4} />
   </label>
 );
+
+const toFormState = (incident) => {
+  if (!incident) return initialForm;
+  return {
+    incidentCode: incident.incidentCode ?? incident.id ?? "",
+    title: incident.title ?? "",
+    type: incident.type ?? "",
+    severity: incident.severity ?? "LOW",
+    droneId: incident.drone?.id ?? incident.droneId ?? "",
+    missionId: incident.mission?.id ?? incident.missionId ?? "",
+    assignedToId: incident.assignedTo?.id ?? incident.assignedToId ?? "",
+    source: incident.source ?? "Manual Report",
+    location: incident.location ?? incident.place ?? "",
+    details: incident.details ?? ""
+  };
+};
 
 export default IncidentForm;

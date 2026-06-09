@@ -1,5 +1,5 @@
 import { AlertTriangle, Bell, CheckCircle2, LoaderCircle, Moon, Monitor, RefreshCw, Search, Sun, UserRound } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { hasClientPermission } from "../../features/auth/accessControl";
 import { droneOpsApi } from "../../services/droneOpsApi";
 
@@ -15,7 +15,12 @@ const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChan
   const [notificationError, setNotificationError] = useState("");
   const [isNotificationLoading, setIsNotificationLoading] = useState(false);
   const [lastLoadedAt, setLastLoadedAt] = useState(0);
-  const unreadCount = useMemo(() => notifications.filter((item) => item.priority !== "info").length, [notifications]);
+  const storageKey = useMemo(() => `droneops-read-notifications:${user?.id ?? "anonymous"}`, [user?.id]);
+  const [readNotificationIds, setReadNotificationIds] = useState([]);
+  const unreadCount = useMemo(
+    () => notifications.filter((item) => item.priority !== "info" && !readNotificationIds.includes(item.id)).length,
+    [notifications, readNotificationIds]
+  );
 
   const canRead = useCallback((permission) => hasClientPermission(user, permission), [user]);
 
@@ -47,10 +52,38 @@ const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChan
     }
   }, [canRead, lastLoadedAt]);
 
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      setReadNotificationIds(stored ? JSON.parse(stored) : []);
+    } catch {
+      setReadNotificationIds([]);
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    loadNotifications();
+    const intervalId = window.setInterval(() => loadNotifications({ force: true }), 60000);
+    return () => window.clearInterval(intervalId);
+  }, [loadNotifications]);
+
+  const markNotificationsRead = useCallback((items) => {
+    if (!items.length) return;
+
+    setReadNotificationIds((current) => {
+      const next = Array.from(new Set([...current, ...items.map((item) => item.id)]));
+      window.localStorage.setItem(storageKey, JSON.stringify(next));
+      return next;
+    });
+  }, [storageKey]);
+
   const handleNotificationClick = () => {
     const nextOpenState = !isNotificationsOpen;
     setIsNotificationsOpen(nextOpenState);
-    if (nextOpenState) loadNotifications();
+    if (nextOpenState) {
+      loadNotifications();
+      markNotificationsRead(notifications);
+    }
   };
 
   return (
@@ -87,15 +120,26 @@ const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChan
                   <strong>Notifications</strong>
                   <span>{user?.roleLabel ?? "Current user"}</span>
                 </div>
-                <button
-                  className="icon-button compact"
-                  type="button"
-                  aria-label="Refresh notifications"
-                  onClick={() => loadNotifications({ force: true })}
-                  disabled={isNotificationLoading}
-                >
-                  {isNotificationLoading ? <LoaderCircle className="button-spinner" size={15} /> : <RefreshCw size={15} />}
-                </button>
+                <div className="notification-actions">
+                  {unreadCount > 0 && (
+                    <button
+                      className="notification-read-button"
+                      type="button"
+                      onClick={() => markNotificationsRead(notifications)}
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                  <button
+                    className="icon-button compact"
+                    type="button"
+                    aria-label="Refresh notifications"
+                    onClick={() => loadNotifications({ force: true })}
+                    disabled={isNotificationLoading}
+                  >
+                    {isNotificationLoading ? <LoaderCircle className="button-spinner" size={15} /> : <RefreshCw size={15} />}
+                  </button>
+                </div>
               </div>
               <div className="notification-list">
                 {isNotificationLoading && notifications.length === 0 && <p className="empty-state">Loading notifications...</p>}

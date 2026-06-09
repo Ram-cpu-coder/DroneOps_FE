@@ -12,9 +12,11 @@ import { useApiResource } from "../../hooks/useApiResource";
 import { useFleetSearch } from "../../hooks/useFleetSearch";
 import { droneOpsApi } from "../../services/droneOpsApi";
 import MissionForm from "./components/MissionForm";
+import MissionProfileDialog from "./components/MissionProfileDialog";
 
 const Missions = ({ searchValue, user, pendingRouteAction, onRouteActionHandled }) => {
   const [showMissionForm, setShowMissionForm] = useState(false);
+  const [selectedMission, setSelectedMission] = useState(null);
   const [toast, setToast] = useState(null);
   const canManageMissions = hasClientPermission(user, "missions:manage");
   const loadMissions = useCallback(() => droneOpsApi.missions.list(), []);
@@ -35,7 +37,15 @@ const Missions = ({ searchValue, user, pendingRouteAction, onRouteActionHandled 
   }, [canManageMissions, onRouteActionHandled, pendingRouteAction]);
 
   const columns = [
-    { key: "id", label: "Mission ID", render: (mission) => <strong>{mission.id}</strong> },
+    {
+      key: "id",
+      label: "Mission ID",
+      render: (mission) => (
+        <button className="link-button strong-link" type="button" onClick={() => setSelectedMission(mission)}>
+          <span>{mission.id}</span>
+        </button>
+      )
+    },
     { key: "name", label: "Mission" },
     { key: "type", label: "Type" },
     { key: "drone", label: "Drone" },
@@ -56,6 +66,7 @@ const Missions = ({ searchValue, user, pendingRouteAction, onRouteActionHandled 
 
   return (
     <section className="page-stack">
+      {selectedMission && <MissionProfileDialog mission={selectedMission} onClose={() => setSelectedMission(null)} />}
       {toast && (
         <div className="toast-region" role="status" aria-live="polite">
           <div className="toast-card success">
@@ -122,7 +133,10 @@ const normalizeMission = (mission) => ({
   drone: mission.drone?.droneCode ?? mission.drone ?? "Unassigned",
   pilot: mission.pilot?.name ?? mission.pilot ?? "Unassigned",
   risk: mission.riskAssessment?.level ?? mission.risk ?? "Pending",
-  eta: mission.eta ?? (mission.plannedStartAt ? new Date(mission.plannedStartAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Not scheduled")
+  eta: mission.eta ?? (mission.plannedStartAt ? new Date(mission.plannedStartAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Not scheduled"),
+  launchSite: mission.launchSite,
+  operatingArea: mission.operatingArea,
+  routeNotes: mission.plannedRoute?.notes
 });
 
 export default Missions;

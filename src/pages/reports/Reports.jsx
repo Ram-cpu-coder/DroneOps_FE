@@ -1,24 +1,61 @@
-import { useCallback, useMemo } from "react";
-import { BarChart3, Download, FileText } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BarChart3, CheckCircle2, Download, FileSpreadsheet, FileText, X } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 import DataTable from "../../components/common/DataTable";
 import MetricCard from "../../components/common/MetricCard";
 import SectionHeader from "../../components/common/SectionHeader";
 import StatusBadge from "../../components/common/StatusBadge";
 import { reports } from "../../data/droneOpsData";
+import { hasClientPermission } from "../../features/auth/accessControl";
 import { useApiResource } from "../../hooks/useApiResource";
 import { droneOpsApi } from "../../services/droneOpsApi";
+import ReportProfileDialog from "./components/ReportProfileDialog";
+import { exportReportCollection } from "../../utils/reportExport";
 
-const Reports = () => {
+const Reports = ({ user }) => {
+  const actionsRef = useRef(null);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  const [toast, setToast] = useState(null);
   const loadReports = useCallback(() => droneOpsApi.reports.list(), []);
-  const { data: apiReports, error, isLoading, isFallback } = useApiResource(loadReports, reports);
+  const { data: apiReports, error, isLoading, isFallback, refresh } = useApiResource(loadReports, reports);
   const normalizedReports = useMemo(() => apiReports.map(normalizeReport), [apiReports]);
   const metricReports = isFallback ? [] : normalizedReports;
+  const canGenerateReports = hasClientPermission(user, "reports:read");
+  const canDeleteReports = hasClientPermission(user, "*");
   const readyReports = metricReports.filter((report) => ["Ready", "READY", "GENERATED", "Generated"].includes(report.status)).length;
   const reportTypeCount = new Set(metricReports.map((report) => report.type).filter(Boolean)).size;
+  const generateOptions = [
+    { value: "FLIGHT_ACTIVITY", label: "Flight Activity" },
+    { value: "INCIDENT", label: "Incident" },
+    { value: "MAINTENANCE", label: "Maintenance" },
+    { value: "COMPLIANCE", label: "Compliance" },
+    { value: "UTILIZATION", label: "Utilization" }
+  ];
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!actionsRef.current?.contains(event.target)) {
+        setIsGenerateOpen(false);
+        setIsExportOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
 
   const columns = [
-    { key: "name", label: "Report", render: (report) => <strong>{report.name}</strong> },
+    {
+      key: "name",
+      label: "Report",
+      render: (report) => (
+        <button className="link-button strong-link" type="button" onClick={() => setSelectedReport(report)}>
+          <span>{report.name}</span>
+        </button>
+      )
+    },
     { key: "value", label: "Current Value" },
     { key: "change", label: "Change" },
     { key: "status", label: "Status", render: (report) => <StatusBadge>{report.status}</StatusBadge> },
@@ -27,6 +64,33 @@ const Reports = () => {
 
   return (
     <section className="page-stack">
+      {selectedReport && (
+        <ReportProfileDialog
+          report={selectedReport}
+          canDelete={canDeleteReports}
+          onDeleted={() => {
+            refresh();
+            setSelectedReport(null);
+            setToast({ title: "Report deleted", message: `${selectedReport.name} was removed.` });
+            window.setTimeout(() => setToast(null), 4500);
+          }}
+          onClose={() => setSelectedReport(null)}
+        />
+      )}
+      {toast && (
+        <div className="toast-region" role="status" aria-live="polite">
+          <div className="toast-card success">
+            <CheckCircle2 size={20} />
+            <div>
+              <strong>{toast.title}</strong>
+              <p>{toast.message}</p>
+            </div>
+            <button className="toast-close" type="button" onClick={() => setToast(null)} aria-label="Dismiss notification">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
       <div className="stats-grid three">
         <MetricCard label="Reports" value={isLoading ? "..." : metricReports.length} delta={isFallback ? "Backend unavailable" : "Saved report records"} icon={BarChart3} tone="blue" />
         <MetricCard label="Ready Reports" value={isLoading ? "..." : readyReports} delta="Ready to view or export" icon={FileText} tone="green" />
@@ -36,8 +100,108 @@ const Reports = () => {
       <div className="panel">
         <SectionHeader
           title="Operational Reports"
-          description="Summary views ready to connect to PostgreSQL-backed analytics endpoints."
-          action={<ActionButton icon={Download} variant="primary">Export</ActionButton>}
+          description="Stored operational snapshots generated from DroneOps data and ready for export."
+          action={(
+            <div className="section-actions" ref={actionsRef}>
+              {canGenerateReports && (
+                <div className="dashboard-filter-wrap">
+                  <ActionButton
+                    icon={BarChart3}
+                    onClick={() => {
+                      setIsExportOpen(false);
+                      setIsGenerateOpen((current) => !current);
+                    }}
+                  >
+                    Generate Report
+                  </ActionButton>
+                  {isGenerateOpen && (
+                    <div className="dashboard-filter-menu export-menu" role="menu" aria-label="Generate reports">
+                      {generateOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const report = await droneOpsApi.reports.generate({ type: option.value });
+                              await refresh();
+                              setSelectedReport(normalizeReport(report));
+                              setIsGenerateOpen(false);
+                              setToast({
+                                title: "Report generated",
+                                message: `${option.label} report was created from current organisation data.`
+                              });
+                              window.setTimeout(() => setToast(null), 4500);
+                            } catch (requestError) {
+                              setToast({
+                                title: "Report generation failed",
+                                message: requestError.message
+                              });
+                              window.setTimeout(() => setToast(null), 5000);
+                            }
+                          }}
+                        >
+                          <span>{option.label}</span>
+                          <BarChart3 size={15} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="dashboard-filter-wrap">
+                <ActionButton
+                  icon={Download}
+                  variant="primary"
+                  onClick={() => {
+                    setIsGenerateOpen(false);
+                    setIsExportOpen((current) => !current);
+                  }}
+                >
+                  Export
+                </ActionButton>
+                {isExportOpen && (
+                  <div className="dashboard-filter-menu export-menu" role="menu" aria-label="Export reports">
+                    <button type="button" onClick={async () => {
+                      try {
+                        await exportReportCollection(normalizedReports, "excel");
+                        setIsExportOpen(false);
+                      } catch (requestError) {
+                        setToast({ title: "Excel export failed", message: requestError.message });
+                        window.setTimeout(() => setToast(null), 5000);
+                      }
+                    }}>
+                      <span>Export Excel</span>
+                      <FileSpreadsheet size={15} />
+                    </button>
+                    <button type="button" onClick={async () => {
+                      try {
+                        await exportReportCollection(normalizedReports, "pdf");
+                        setIsExportOpen(false);
+                      } catch (requestError) {
+                        setToast({ title: "PDF export failed", message: requestError.message });
+                        window.setTimeout(() => setToast(null), 5000);
+                      }
+                    }}>
+                      <span>Export PDF</span>
+                      <FileText size={15} />
+                    </button>
+                    <button type="button" onClick={async () => {
+                      try {
+                        await exportReportCollection(normalizedReports, "word");
+                        setIsExportOpen(false);
+                      } catch (requestError) {
+                        setToast({ title: "Word export failed", message: requestError.message });
+                        window.setTimeout(() => setToast(null), 5000);
+                      }
+                    }}>
+                      <span>Export Word</span>
+                      <Download size={15} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         />
         <DataTable
           columns={columns}
@@ -46,27 +210,18 @@ const Reports = () => {
           emptyMessage={isLoading ? "Loading reports..." : "No reports generated yet."}
         />
       </div>
-      <div className="report-grid">
-        {normalizedReports.map((report) => (
-          <article className="report-card" key={report.name}>
-            <span>{report.owner}</span>
-            <h3>{report.name}</h3>
-            <strong>{report.value}</strong>
-            <p>{report.change} versus previous reporting window</p>
-          </article>
-        ))}
-      </div>
     </section>
   );
 };
 
 const normalizeReport = (report) => ({
+  ...report,
   name: report.title ?? report.name,
   type: report.type,
-  value: report.value ?? report.type ?? "Snapshot",
-  change: report.change ?? "Stored audit snapshot",
+  value: report.value ?? report.dataSnapshot?.summary?.value ?? report.type ?? "Snapshot",
+  change: report.change ?? report.dataSnapshot?.summary?.change ?? "Stored audit snapshot",
   status: report.status ?? "Ready",
-  owner: report.owner ?? "DroneOps"
+  owner: report.owner ?? report.generatedBy?.name ?? report.dataSnapshot?.summary?.owner ?? "DroneOps"
 });
 
 export default Reports;

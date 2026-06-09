@@ -23,7 +23,8 @@ export const droneOpsApi = {
   incidents: {
     list: () => apiClient.get("/incidents"),
     create: (payload) => apiClient.post("/incidents", payload),
-    update: (id, payload) => apiClient.put(`/incidents/${id}`, payload)
+    update: (id, payload) => apiClient.put(`/incidents/${id}`, payload),
+    remove: (id) => apiClient.delete(`/incidents/${id}`)
   },
   maintenance: {
     list: () => apiClient.get("/maintenance"),
@@ -38,7 +39,9 @@ export const droneOpsApi = {
   reports: {
     list: () => apiClient.get("/reports"),
     summary: () => apiClient.get("/reports/summary"),
-    create: (payload) => apiClient.post("/reports", payload)
+    create: (payload) => apiClient.post("/reports", payload),
+    generate: (payload) => apiClient.post("/reports/generate", payload),
+    remove: (id) => apiClient.delete(`/reports/${id}`)
   },
   geofences: {
     list: () => apiClient.get("/geofences"),
@@ -51,4 +54,3 @@ export const droneOpsApi = {
     list: () => apiClient.get("/audit")
   }
 };
-

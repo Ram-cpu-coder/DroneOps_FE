@@ -1,5 +1,5 @@
-import { CalendarClock, MapPinned, Route, Save, UserRound, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarClock, ChevronDown, MapPinned, Route, Save, Search, UserRound, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import ActionButton from "../../../components/common/ActionButton";
 import { useApiResource } from "../../../hooks/useApiResource";
@@ -31,8 +31,25 @@ const MissionForm = ({ onCreated, onCancel }) => {
   const { data: drones } = useApiResource(loadDrones, []);
   const { data: users } = useApiResource(loadUsers, []);
 
+  const droneOptions = useMemo(
+    () => drones
+      .filter((drone) => drone.status === "AVAILABLE")
+      .map((drone) => ({
+        value: drone.id,
+        label: `${drone.droneCode ?? drone.id} - ${drone.model}`,
+        searchText: `${drone.droneCode ?? drone.id} ${drone.model ?? ""} ${drone.manufacturer ?? ""} ${drone.serialNumber ?? ""}`.toLowerCase()
+      })),
+    [drones]
+  );
+
   const pilotOptions = useMemo(
-    () => users.filter((user) => ["REMOTE_PILOT", "OPERATIONS_MANAGER", "SYSTEM_ADMINISTRATOR"].includes(user.role)),
+    () => users
+      .filter((user) => ["REMOTE_PILOT", "OPERATIONS_MANAGER", "SYSTEM_ADMINISTRATOR"].includes(user.role))
+      .map((user) => ({
+        value: user.id,
+        label: user.name,
+        searchText: `${user.name} ${user.email ?? ""} ${user.role ?? ""}`.toLowerCase()
+      })),
     [users]
   );
 
@@ -117,17 +134,19 @@ const MissionForm = ({ onCreated, onCancel }) => {
             </FormSection>
 
             <FormSection icon={UserRound} title="Assignment">
-              <SelectField
-                label="Assigned Drone"
+              <SearchableSelectField
+                label={`Assigned Drone (${droneOptions.length})`}
                 value={form.droneId}
                 onChange={(value) => updateField("droneId", value)}
-                options={drones.map((drone) => ({ value: drone.id, label: `${drone.droneCode ?? drone.id} - ${drone.model}` }))}
+                options={droneOptions}
+                placeholder="Search drone ID, model, manufacturer"
               />
-              <SelectField
-                label="Remote Pilot"
+              <SearchableSelectField
+                label={`Remote Pilot (${pilotOptions.length})`}
                 value={form.pilotId}
                 onChange={(value) => updateField("pilotId", value)}
-                options={pilotOptions.map((pilot) => ({ value: pilot.id, label: pilot.name }))}
+                options={pilotOptions}
+                placeholder="Search pilot name, email, role"
               />
               <Field label="Launch Site" value={form.launchSite} onChange={(value) => updateField("launchSite", value)} placeholder="Main dock / roof pad" />
             </FormSection>
@@ -203,6 +222,100 @@ const SelectField = ({ label, options, value, onChange, required = false }) => (
     </select>
   </label>
 );
+
+const SearchableSelectField = ({
+  label,
+  options,
+  value,
+  onChange,
+  placeholder = "Search"
+}) => {
+  const [query, setQuery] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const wrapperRef = useRef(null);
+
+  const selectedOption = useMemo(
+    () => options.find((option) => (typeof option === "string" ? option : option.value) === value) ?? null,
+    [options, value]
+  );
+
+  const filteredOptions = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return options;
+    return options.filter((option) => {
+      const searchText = typeof option === "string"
+        ? option.toLowerCase()
+        : (option.searchText ?? option.label ?? "").toLowerCase();
+      return searchText.includes(normalizedQuery);
+    });
+  }, [options, query]);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!wrapperRef.current?.contains(event.target)) {
+        setIsOpen(false);
+        setQuery("");
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+
+  const inputValue = isOpen ? query : (selectedOption ? (typeof selectedOption === "string" ? selectedOption : selectedOption.label) : "");
+
+  return (
+    <div className="field searchable-select-field" ref={wrapperRef}>
+      <span>{label}</span>
+      <div className={`field-search-input combo-input ${isOpen ? "open" : ""}`}>
+        <Search size={16} />
+        <input
+          type="text"
+          value={inputValue}
+          onFocus={() => setIsOpen(true)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setIsOpen(true);
+          }}
+          placeholder={selectedOption ? "" : placeholder}
+        />
+        <button type="button" className="combo-toggle" onClick={() => setIsOpen((current) => !current)} aria-label={`Toggle ${label.toLowerCase()} options`}>
+          <ChevronDown size={16} />
+        </button>
+      </div>
+      <input type="hidden" value={value ?? ""} readOnly />
+      {isOpen && (
+        <div className="combo-options" role="listbox" aria-label={label}>
+          {filteredOptions.length ? (
+            filteredOptions.map((option) => {
+              const optionValue = typeof option === "string" ? option : option.value;
+              const optionLabel = typeof option === "string" ? option : option.label;
+              const isSelected = optionValue === value;
+
+              return (
+                <button
+                  key={optionValue}
+                  type="button"
+                  className={`combo-option ${isSelected ? "selected" : ""}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    onChange?.(optionValue);
+                    setQuery("");
+                    setIsOpen(false);
+                  }}
+                >
+                  <span>{optionLabel}</span>
+                </button>
+              );
+            })
+          ) : (
+            <div className="combo-empty">No drones matched your search.</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const TextareaField = ({ label, placeholder = "", value, onChange }) => (
   <label className="field wide-field">
