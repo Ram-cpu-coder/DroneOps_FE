@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { CheckCircle2, Eye, Plane, Plus, Wrench, X } from "lucide-react";
+import { CheckCircle2, Plane, Plus, Wrench, X } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 import BatteryMeter from "../../components/common/BatteryMeter";
 import DataTable from "../../components/common/DataTable";
@@ -40,7 +40,6 @@ const Fleet = ({ searchValue, user }) => {
       label: "Drone",
       render: (drone) => (
         <button className="link-button strong-link" type="button" onClick={() => setSelectedDrone(drone)}>
-          <Eye size={15} />
           <span>{drone.id}</span>
         </button>
       )

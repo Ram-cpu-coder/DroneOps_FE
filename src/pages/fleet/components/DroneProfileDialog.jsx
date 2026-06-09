@@ -341,7 +341,6 @@ const getDroneLocationState = (drone) => {
     isOffline,
     location,
     timestamp: latestTimestamp,
-    mapPoint: location ? coordinateToMapPoint(location) : null,
     label: !location
       ? "Waiting for first GPS telemetry."
       : isOffline

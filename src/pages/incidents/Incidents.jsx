@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Plus, ShieldCheck, UserRoundCheck, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ShieldCheck, UserRoundCheck, X } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 import DataTable from "../../components/common/DataTable";
 import MetricCard from "../../components/common/MetricCard";
@@ -11,11 +11,14 @@ import { useApiResource } from "../../hooks/useApiResource";
 import { useFleetSearch } from "../../hooks/useFleetSearch";
 import { droneOpsApi } from "../../services/droneOpsApi";
 import IncidentForm from "./components/IncidentForm";
+import IncidentProfileDialog from "./components/IncidentProfileDialog";
 
 const Incidents = ({ searchValue, user }) => {
   const [showIncidentForm, setShowIncidentForm] = useState(false);
+  const [selectedIncident, setSelectedIncident] = useState(null);
   const [toast, setToast] = useState(null);
   const canCreateIncident = hasClientPermission(user, "incidents:manage") || hasClientPermission(user, "incidents:create");
+  const canManageIncident = hasClientPermission(user, "incidents:manage");
   const loadIncidents = useCallback(() => droneOpsApi.incidents.list(), []);
   const { data: apiIncidents, error, isLoading, isFallback, refresh } = useApiResource(loadIncidents, incidents);
   const normalizedIncidents = useMemo(() => apiIncidents.map(normalizeIncident), [apiIncidents]);
@@ -30,7 +33,15 @@ const Incidents = ({ searchValue, user }) => {
   ).size;
 
   const columns = [
-    { key: "id", label: "Incident", render: (incident) => <strong>{incident.id}</strong> },
+    {
+      key: "id",
+      label: "Incident",
+      render: (incident) => (
+        <button className="link-button strong-link" type="button" onClick={() => setSelectedIncident(incident)}>
+          <span>{incident.id}</span>
+        </button>
+      )
+    },
     { key: "title", label: "Issue" },
     { key: "severity", label: "Severity", render: (incident) => <StatusBadge type="risk">{incident.severity}</StatusBadge> },
     { key: "status", label: "Status", render: (incident) => <StatusBadge>{incident.status}</StatusBadge> },
@@ -49,6 +60,25 @@ const Incidents = ({ searchValue, user }) => {
 
   return (
     <section className="page-stack">
+      {selectedIncident && (
+        <IncidentProfileDialog
+          incident={selectedIncident}
+          canManage={canManageIncident}
+          onUpdated={() => {
+            refresh();
+            setSelectedIncident(null);
+            setToast({ title: "Incident updated", message: `${selectedIncident.id} was updated successfully.` });
+            window.setTimeout(() => setToast(null), 4500);
+          }}
+          onDeleted={() => {
+            refresh();
+            setSelectedIncident(null);
+            setToast({ title: "Incident deleted", message: `${selectedIncident.id} was removed from the register.` });
+            window.setTimeout(() => setToast(null), 4500);
+          }}
+          onClose={() => setSelectedIncident(null)}
+        />
+      )}
       {toast && (
         <div className="toast-region" role="status" aria-live="polite">
           <div className="toast-card success">
@@ -76,7 +106,7 @@ const Incidents = ({ searchValue, user }) => {
           description="Actionable operational incidents with ownership, severity, source, and latest status."
           action={canCreateIncident ? (
             <ActionButton
-              icon={Plus}
+              icon={AlertTriangle}
               variant="primary"
               onClick={handleLogIncidentClick}
             >
@@ -105,22 +135,6 @@ const Incidents = ({ searchValue, user }) => {
           onCancel={() => setShowIncidentForm(false)}
         />
       )}
-      <div className="detail-grid">
-        {filteredIncidents.map((incident) => (
-          <article className="detail-card" key={incident.id}>
-            <div className="detail-card-header">
-              <h3>{incident.title}</h3>
-              <StatusBadge type="risk">{incident.severity}</StatusBadge>
-            </div>
-            <p>{incident.details}</p>
-            <dl>
-              <div><dt>Location</dt><dd>{incident.place}</dd></div>
-              <div><dt>Owner</dt><dd>{incident.owner}</dd></div>
-              <div><dt>Status</dt><dd>{incident.status}</dd></div>
-            </dl>
-          </article>
-        ))}
-      </div>
     </section>
   );
 };
@@ -131,7 +145,10 @@ const normalizeIncident = (incident) => ({
   owner: incident.assignedTo?.name ?? incident.reportedBy?.name ?? incident.owner ?? "Unassigned",
   place: incident.location ?? incident.place ?? "No location",
   time: incident.createdAt ? new Date(incident.createdAt).toLocaleString() : incident.time,
-  details: incident.details ?? "No details captured yet."
+  details: incident.details ?? "No details captured yet.",
+  droneLabel: incident.drone?.droneCode ?? incident.drone ?? "",
+  missionLabel: incident.mission?.missionCode ?? incident.mission?.name ?? incident.mission ?? "",
+  typeLabel: incident.type?.toString().toLowerCase().replaceAll("_", " ")
 });
 
 export default Incidents;
