@@ -18,6 +18,29 @@ const getAccessToken = () => {
   return getSession()?.accessToken ?? "";
 };
 
+const shouldNotifyActivityChange = (method = "GET", path = "") => {
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase())) return false;
+
+  const ignoredPaths = [
+    "/auth/login",
+    "/auth/google",
+    "/auth/signup",
+    "/auth/refresh-token",
+    "/auth/forgot-password",
+    "/auth/reset-password"
+  ];
+
+  return !ignoredPaths.some((ignoredPath) => path.startsWith(ignoredPath));
+};
+
+const notifyActivityChanged = (path, method) => {
+  if (typeof window === "undefined" || !shouldNotifyActivityChange(method, path)) return;
+
+  window.dispatchEvent(new CustomEvent("droneops:activity-changed", {
+    detail: { path, method }
+  }));
+};
+
 const refreshAccessToken = async () => {
   const session = getSession();
   if (!session?.refreshToken) return null;
@@ -63,7 +86,12 @@ const request = async (path, options = {}, retry = true) => {
     body: options.body instanceof FormData ? options.body : options.body ? JSON.stringify(options.body) : undefined
   });
 
-  if (response.status === 204) return null;
+  const method = options.method ?? "GET";
+
+  if (response.status === 204) {
+    notifyActivityChanged(path, method);
+    return null;
+  }
 
   const payload = await response.json().catch(() => ({}));
 
@@ -80,6 +108,7 @@ const request = async (path, options = {}, retry = true) => {
     throw new Error(payload.message || `Request failed: ${response.status}`);
   }
 
+  notifyActivityChanged(path, method);
   return payload.data ?? payload;
 };
 

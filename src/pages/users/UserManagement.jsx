@@ -7,16 +7,18 @@ import SectionHeader from "../../components/common/SectionHeader";
 import StatusBadge from "../../components/common/StatusBadge";
 import { userRoles } from "../../data/authData";
 import { useApiResource } from "../../hooks/useApiResource";
+import { useFleetSearch } from "../../hooks/useFleetSearch";
 import { droneOpsApi } from "../../services/droneOpsApi";
 import UserProfileDialog from "./components/UserProfileDialog";
 
-const UserManagement = ({ user }) => {
+const UserManagement = ({ user, searchValue = "" }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [selectedUser, setSelectedUser] = useState(null);
   const loadUsers = useCallback(() => droneOpsApi.users.list(), []);
   const { data: apiUsers, error, isLoading, isFallback, setData } = useApiResource(loadUsers, []);
   const users = useMemo(() => apiUsers.map(normalizeUser), [apiUsers]);
+  const filteredUsers = useFleetSearch(users, searchValue);
   const routeUserId = useMemo(() => getDetailId(location.pathname, "/users"), [location.pathname]);
   const metricUsers = isFallback ? [] : users;
   const verifiedUsers = metricUsers.filter((user) => user.isVerified).length;
@@ -89,7 +91,7 @@ const UserManagement = ({ user }) => {
         />
         <DataTable
           columns={columns}
-          rows={users}
+          rows={filteredUsers}
           getRowKey={(user) => user.id}
           onRowClick={(row) => navigate(`/users/${encodeURIComponent(row.id)}`)}
           emptyMessage={isLoading ? "Loading users..." : "No users found."}

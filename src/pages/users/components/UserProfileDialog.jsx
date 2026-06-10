@@ -200,7 +200,16 @@ const UserProfileDialog = ({ user, currentUser, canManage = false, onUpdated, on
               ) : (
                 <>
                   <ActionButton icon={Pencil} type="button" onClick={() => setIsEditing(true)}>Edit</ActionButton>
-                  <ActionButton icon={Trash2} variant="danger" type="button" onClick={handleDelete} disabled={!canDelete}>Delete</ActionButton>
+                  <ActionButton
+                    icon={Trash2}
+                    variant="danger"
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={!canDelete}
+                    title={canDelete ? "Delete user" : "You cannot delete your own active account"}
+                  >
+                    Delete
+                  </ActionButton>
                 </>
               )}
             </div>

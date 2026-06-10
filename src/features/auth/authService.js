@@ -32,7 +32,22 @@ const persistSession = (session) => {
   return session;
 };
 
+const clearSession = () => {
+  localStorage.removeItem(SESSION_KEY);
+};
+
+const wait = (delay) => new Promise((resolve) => window.setTimeout(resolve, delay));
+
+const isTransientNetworkError = (error) => {
+  const message = error?.message?.toLowerCase() ?? "";
+  return message.includes("failed to fetch") || message.includes("networkerror") || message.includes("load failed");
+};
+
 export const authService = {
+  hasStoredSession() {
+    return Boolean(localStorage.getItem(SESSION_KEY));
+  },
+
   getSession() {
     const rawSession = localStorage.getItem(SESSION_KEY);
     if (!rawSession) return null;
@@ -46,7 +61,38 @@ export const authService = {
         user: decorateUser(session.user)
       };
     } catch {
-      localStorage.removeItem(SESSION_KEY);
+      clearSession();
+      return null;
+    }
+  },
+
+  async restoreSession() {
+    const rawSession = localStorage.getItem(SESSION_KEY);
+    if (!rawSession) return null;
+
+    try {
+      const session = JSON.parse(rawSession);
+      if (!session?.refreshToken) {
+        clearSession();
+        return null;
+      }
+
+      let result;
+      try {
+        result = await apiClient.post("/auth/refresh-token", { refreshToken: session.refreshToken });
+      } catch (error) {
+        if (!isTransientNetworkError(error)) throw error;
+        await wait(1400);
+        result = await apiClient.post("/auth/refresh-token", { refreshToken: session.refreshToken });
+      }
+
+      return persistSession({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        user: decorateUser(result.user ?? session.user)
+      });
+    } catch {
+      clearSession();
       return null;
     }
   },
@@ -128,7 +174,7 @@ export const authService = {
     try {
       await apiClient.post("/auth/logout", {});
     } finally {
-      localStorage.removeItem(SESSION_KEY);
+      clearSession();
     }
   }
 };
