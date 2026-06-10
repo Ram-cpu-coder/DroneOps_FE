@@ -17,7 +17,8 @@ export const userRoles = [
       "incidents:read",
       "reports",
       "reports:read",
-      "documents:read"
+      "documents:read",
+      "audit:read"
     ]
   },
   {
@@ -33,7 +34,8 @@ export const userRoles = [
       "telemetry:read",
       "geofences:read",
       "incidents:create",
-      "documents:read"
+      "documents:read",
+      "audit:read"
     ]
   },
   {
@@ -48,7 +50,8 @@ export const userRoles = [
       "defects:manage",
       "reports",
       "reports:read",
-      "documents:read"
+      "documents:read",
+      "audit:read"
     ]
   },
   {
@@ -66,7 +69,8 @@ export const userRoles = [
       "telemetry:read",
       "reports",
       "reports:read",
-      "documents:read"
+      "documents:read",
+      "audit:read"
     ]
   },
   {

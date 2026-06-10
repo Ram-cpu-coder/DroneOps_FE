@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, CheckCircle2, Download, FileSpreadsheet, FileText, X } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import ActionButton from "../../components/common/ActionButton";
 import DataTable from "../../components/common/DataTable";
 import MetricCard from "../../components/common/MetricCard";
@@ -13,6 +14,8 @@ import ReportProfileDialog from "./components/ReportProfileDialog";
 import { exportReportCollection } from "../../utils/reportExport";
 
 const Reports = ({ user }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const actionsRef = useRef(null);
   const [selectedReport, setSelectedReport] = useState(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -22,6 +25,7 @@ const Reports = ({ user }) => {
   const { data: apiReports, error, isLoading, isFallback, refresh } = useApiResource(loadReports, reports);
   const normalizedReports = useMemo(() => apiReports.map(normalizeReport), [apiReports]);
   const metricReports = isFallback ? [] : normalizedReports;
+  const routeReportId = useMemo(() => getDetailId(location.pathname, "/reports"), [location.pathname]);
   const canGenerateReports = hasClientPermission(user, "reports:read");
   const canDeleteReports = hasClientPermission(user, "*");
   const readyReports = metricReports.filter((report) => ["Ready", "READY", "GENERATED", "Generated"].includes(report.status)).length;
@@ -46,12 +50,22 @@ const Reports = ({ user }) => {
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, []);
 
+  useEffect(() => {
+    if (!routeReportId) {
+      setSelectedReport(null);
+      return;
+    }
+
+    const matchedReport = normalizedReports.find((report) => String(report.uuid ?? report.id) === routeReportId);
+    setSelectedReport(matchedReport ?? null);
+  }, [normalizedReports, routeReportId]);
+
   const columns = [
     {
       key: "name",
       label: "Report",
       render: (report) => (
-        <button className="link-button strong-link" type="button" onClick={() => setSelectedReport(report)}>
+        <button className="link-button strong-link" type="button" onClick={() => navigate(`/reports/${encodeURIComponent(report.uuid ?? report.id)}`)}>
           <span>{report.name}</span>
         </button>
       )
@@ -70,11 +84,11 @@ const Reports = ({ user }) => {
           canDelete={canDeleteReports}
           onDeleted={() => {
             refresh();
-            setSelectedReport(null);
+            navigate("/reports");
             setToast({ title: "Report deleted", message: `${selectedReport.name} was removed.` });
             window.setTimeout(() => setToast(null), 4500);
           }}
-          onClose={() => setSelectedReport(null)}
+          onClose={() => navigate("/reports")}
         />
       )}
       {toast && (
@@ -124,7 +138,7 @@ const Reports = ({ user }) => {
                             try {
                               const report = await droneOpsApi.reports.generate({ type: option.value });
                               await refresh();
-                              setSelectedReport(normalizeReport(report));
+                              navigate(`/reports/${encodeURIComponent(report.id)}`);
                               setIsGenerateOpen(false);
                               setToast({
                                 title: "Report generated",
@@ -216,6 +230,7 @@ const Reports = ({ user }) => {
 
 const normalizeReport = (report) => ({
   ...report,
+  uuid: report.id,
   name: report.title ?? report.name,
   type: report.type,
   value: report.value ?? report.dataSnapshot?.summary?.value ?? report.type ?? "Snapshot",
@@ -223,5 +238,10 @@ const normalizeReport = (report) => ({
   status: report.status ?? "Ready",
   owner: report.owner ?? report.generatedBy?.name ?? report.dataSnapshot?.summary?.owner ?? "DroneOps"
 });
+
+const getDetailId = (pathname, basePath) => {
+  if (pathname === basePath || !pathname.startsWith(`${basePath}/`)) return null;
+  return decodeURIComponent(pathname.slice(basePath.length + 1).split("/")[0] ?? "");
+};
 
 export default Reports;

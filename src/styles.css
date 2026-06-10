@@ -652,8 +652,62 @@ button {
 }
 
 .auth-panel:has(.signup-form) .drone-logo {
-  width: 72px;
-  height: 38px;
+  width: 76px;
+  height: 42px;
+}
+
+.auth-panel:has(.signup-form) .drone-logo::before,
+.auth-panel:has(.signup-form) .drone-logo::after {
+  top: 19px;
+  width: 37px;
+  height: 5px;
+}
+
+.auth-panel:has(.signup-form) .drone-logo::before {
+  left: 9px;
+}
+
+.auth-panel:has(.signup-form) .drone-logo::after {
+  right: 9px;
+}
+
+.auth-panel:has(.signup-form) .drone-body {
+  top: 16px;
+  width: 24px;
+  height: 16px;
+  border-radius: 10px 10px 13px 13px;
+}
+
+.auth-panel:has(.signup-form) .drone-body::after {
+  bottom: 3px;
+  width: 12px;
+  height: 5px;
+  border-width: 1px;
+}
+
+.auth-panel:has(.signup-form) .drone-rotor {
+  width: 24px;
+  height: 5px;
+}
+
+.auth-panel:has(.signup-form) .rotor-left-top {
+  top: 5px;
+  left: 5px;
+}
+
+.auth-panel:has(.signup-form) .rotor-right-top {
+  top: 5px;
+  right: 5px;
+}
+
+.auth-panel:has(.signup-form) .rotor-left-bottom {
+  left: 4px;
+  bottom: 5px;
+}
+
+.auth-panel:has(.signup-form) .rotor-right-bottom {
+  right: 4px;
+  bottom: 5px;
 }
 
 .auth-panel:has(.signup-form) .auth-brand h1 {
@@ -696,8 +750,10 @@ button {
   position: relative;
   width: 94px;
   height: 50px;
+  flex: 0 0 auto;
   filter: drop-shadow(0 0 22px rgba(91, 150, 255, 0.46));
   animation: logoHover 4s ease-in-out infinite;
+  isolation: isolate;
 }
 
 .drone-logo::before,
@@ -709,6 +765,7 @@ button {
   content: "";
   background: #5b96ff;
   border-radius: 999px;
+  z-index: 1;
 }
 
 .drone-logo::before {
@@ -723,6 +780,7 @@ button {
 
 .drone-body {
   position: absolute;
+  z-index: 2;
   top: 20px;
   left: 50%;
   width: 30px;
@@ -746,6 +804,7 @@ button {
 
 .drone-rotor {
   position: absolute;
+  z-index: 3;
   width: 30px;
   height: 7px;
   background: #5b96ff;
@@ -777,6 +836,140 @@ button {
   display: grid;
   gap: 12px;
   width: 100%;
+}
+
+.loading-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.loading-logo.compact {
+  width: 24px;
+  height: 18px;
+  gap: 0;
+}
+
+.loading-drone-logo.md {
+  width: 64px;
+  height: 36px;
+}
+
+.loading-drone-logo.md::before,
+.loading-drone-logo.md::after {
+  top: 16px;
+  width: 32px;
+  height: 5px;
+}
+
+.loading-drone-logo.md::before {
+  left: 8px;
+}
+
+.loading-drone-logo.md::after {
+  right: 8px;
+}
+
+.loading-drone-logo.md .drone-body {
+  top: 14px;
+  width: 22px;
+  height: 15px;
+}
+
+.loading-drone-logo.md .drone-body::after {
+  bottom: 3px;
+  width: 11px;
+  height: 5px;
+  border-width: 1px;
+}
+
+.loading-drone-logo.md .drone-rotor {
+  width: 20px;
+  height: 5px;
+}
+
+.loading-drone-logo.md .rotor-left-top {
+  top: 5px;
+  left: 4px;
+}
+
+.loading-drone-logo.md .rotor-right-top {
+  top: 5px;
+  right: 4px;
+}
+
+.loading-drone-logo.md .rotor-left-bottom {
+  left: 3px;
+  bottom: 5px;
+}
+
+.loading-drone-logo.md .rotor-right-bottom {
+  right: 3px;
+  bottom: 5px;
+}
+
+.loading-drone-logo.xs {
+  width: 26px;
+  height: 16px;
+  filter: drop-shadow(0 0 10px rgba(91, 150, 255, 0.34));
+}
+
+.loading-drone-logo.xs::before,
+.loading-drone-logo.xs::after {
+  top: 7px;
+  width: 13px;
+  height: 3px;
+}
+
+.loading-drone-logo.xs::before {
+  left: 4px;
+}
+
+.loading-drone-logo.xs::after {
+  right: 4px;
+}
+
+.loading-drone-logo.xs .drone-body {
+  top: 6px;
+  width: 10px;
+  height: 7px;
+  border-radius: 5px 5px 6px 6px;
+}
+
+.loading-drone-logo.xs .drone-body::after {
+  bottom: 2px;
+  width: 5px;
+  height: 2px;
+  border-width: 1px;
+}
+
+.loading-drone-logo.xs .drone-rotor {
+  width: 8px;
+  height: 3px;
+}
+
+.loading-drone-logo.xs .rotor-left-top {
+  top: 2px;
+  left: 2px;
+}
+
+.loading-drone-logo.xs .rotor-right-top {
+  top: 2px;
+  right: 2px;
+}
+
+.loading-drone-logo.xs .rotor-left-bottom {
+  left: 2px;
+  bottom: 2px;
+}
+
+.loading-drone-logo.xs .rotor-right-bottom {
+  right: 2px;
+  bottom: 2px;
 }
 
 .signup-form {
@@ -1178,6 +1371,62 @@ body.modal-open {
   color: #ffffff;
   background: linear-gradient(145deg, #1d6fea, #52d3ac);
   border-radius: 16px;
+}
+
+.user-profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 86px;
+  height: 86px;
+  overflow: hidden;
+  color: #f8fbff;
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.26), transparent 28%),
+    linear-gradient(145deg, #1d6fea, #52d3ac);
+  border: 1px solid rgba(137, 160, 190, 0.28);
+  border-radius: 22px;
+  box-shadow: 0 18px 40px rgba(29, 111, 234, 0.24);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.user-profile-hero {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.user-profile-form {
+  padding: 0 24px 20px;
+}
+
+.user-verified-toggle {
+  grid-column: 1 / -1;
+  align-items: center;
+  min-height: 44px;
+}
+
+.user-profile-upload {
+  margin-top: 0;
+}
+
+.uploaded-image-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 8px 10px;
+  color: var(--text-soft);
+  background: rgba(82, 211, 172, 0.08);
+  border: 1px solid rgba(82, 211, 172, 0.22);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.uploaded-image-preview img {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 999px;
 }
 
 .profile-hero h3,
@@ -1972,10 +2221,25 @@ body.modal-open {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
   gap: 10px;
+  width: 100%;
   padding: 12px;
+  color: inherit;
+  text-align: left;
   background: rgba(255, 255, 255, 0.045);
   border: 1px solid rgba(137, 160, 190, 0.14);
   border-radius: 8px;
+}
+
+button.notification-item {
+  cursor: pointer;
+  font: inherit;
+}
+
+button.notification-item:hover,
+button.notification-item:focus-visible {
+  border-color: rgba(127, 176, 255, 0.42);
+  background: rgba(79, 141, 255, 0.12);
+  outline: none;
 }
 
 .notification-item svg {
@@ -2310,6 +2574,16 @@ table {
   border-collapse: collapse;
 }
 
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover,
+.clickable-row:focus-visible {
+  background: rgba(77, 141, 255, 0.08);
+  outline: none;
+}
+
 th,
 td {
   padding: 16px 24px;
@@ -2328,6 +2602,35 @@ th {
 
 td {
   color: var(--text-soft);
+}
+
+.user-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.user-table-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  overflow: hidden;
+  color: #f8fbff;
+  background: linear-gradient(135deg, #4d8dff, #52d3ac);
+  border: 1px solid rgba(137, 160, 190, 0.24);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.user-table-avatar img,
+.user-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 tr:last-child td {

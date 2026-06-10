@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "./components/layouts/AppLayout";
 import { canAccessRoute, firstAccessibleRoute } from "./features/auth/accessControl";
 import {
@@ -21,8 +22,26 @@ import Signup from "./pages/auth/Signup";
 import VerifyEmail from "./pages/auth/VerifyEmail";
 import { appRoutes } from "./routes/appRoutes";
 
+const authPathToView = {
+  "/login": "login",
+  "/signup": "signup",
+  "/verify": "verify",
+  "/reset": "reset",
+  "/google-setup": "google_onboarding"
+};
+
+const authViewToPath = {
+  login: "/login",
+  signup: "/signup",
+  verify: "/verify",
+  reset: "/reset",
+  google_onboarding: "/google-setup"
+};
+
 const App = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { session, authView, pendingVerification, pendingGoogleProfile, error, passwordReset, isLoading } = useSelector((state) => state.auth);
   const { activeRoute, globalSearch, pendingRouteAction, themeMode } = useSelector((state) => state.ui);
 
@@ -31,13 +50,10 @@ const App = () => {
     return appRoutes.filter((route) => canAccessRoute(session.user, route));
   }, [session]);
 
-  useEffect(() => {
-    if (!session?.user) return;
-    if (!accessibleRoutes.some((route) => route.id === activeRoute)) {
-      const nextRoute = firstAccessibleRoute(session.user, appRoutes);
-      if (nextRoute?.id) dispatch(routeChanged(nextRoute.id));
-    }
-  }, [accessibleRoutes, activeRoute, dispatch, session]);
+  const currentAppRoute = useMemo(
+    () => accessibleRoutes.find((route) => location.pathname === route.path || location.pathname.startsWith(`${route.path}/`)) ?? null,
+    [accessibleRoutes, location.pathname]
+  );
 
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode;
@@ -48,15 +64,51 @@ const App = () => {
     const handleSessionExpired = () => {
       dispatch(loggedOut());
       dispatch(uiReset());
+      navigate("/login", { replace: true });
     };
 
     window.addEventListener("droneops:session-expired", handleSessionExpired);
     return () => window.removeEventListener("droneops:session-expired", handleSessionExpired);
-  }, [dispatch]);
+  }, [dispatch, navigate]);
 
-  const ActivePage = useMemo(() => {
-    return accessibleRoutes.find((route) => route.id === activeRoute)?.component ?? accessibleRoutes[0]?.component;
-  }, [accessibleRoutes, activeRoute]);
+  useEffect(() => {
+    if (!session?.user) {
+      const nextAuthView = authPathToView[location.pathname] ?? authView;
+      const nextAuthPath = authViewToPath[nextAuthView] ?? "/login";
+
+      if (nextAuthView !== authView) {
+        dispatch(authViewChanged(nextAuthView));
+      }
+
+      if (location.pathname !== nextAuthPath) {
+        navigate(nextAuthPath, { replace: true });
+      }
+      return;
+    }
+
+    const nextRoute = currentAppRoute ?? firstAccessibleRoute(session.user, appRoutes);
+    if (!nextRoute) return;
+
+    if (activeRoute !== nextRoute.id) {
+      dispatch(routeChanged(nextRoute.id));
+    }
+
+    if (!currentAppRoute && location.pathname !== nextRoute.path) {
+      navigate(nextRoute.path, { replace: true });
+    }
+  }, [activeRoute, authView, currentAppRoute, dispatch, location.pathname, navigate, session]);
+
+  const handleNavigate = useCallback((routeId) => {
+    const nextRoute = accessibleRoutes.find((route) => route.id === routeId);
+    if (!nextRoute) return;
+    dispatch(routeChanged(nextRoute.id));
+    navigate(nextRoute.path);
+  }, [accessibleRoutes, dispatch, navigate]);
+
+  const handleAuthViewChange = useCallback((view) => {
+    dispatch(authViewChanged(view));
+    navigate(authViewToPath[view] ?? "/login");
+  }, [dispatch, navigate]);
 
   const handleLogin = useCallback((credentials) => {
     dispatch(loginRequested(credentials));
@@ -77,7 +129,11 @@ const App = () => {
   const handleLogout = useCallback(() => {
     dispatch(loggedOut());
     dispatch(uiReset());
-  }, [dispatch]);
+    navigate("/login", { replace: true });
+  }, [dispatch, navigate]);
+
+  const ActivePage = currentAppRoute?.component ?? accessibleRoutes[0]?.component;
+  const resolvedActiveRoute = currentAppRoute?.id ?? accessibleRoutes[0]?.id ?? activeRoute;
 
   if (!session?.user) {
     return (
@@ -91,7 +147,7 @@ const App = () => {
             isLoading={isLoading}
             onLogin={handleLogin}
             onGoogleLogin={handleGoogleLogin}
-            onAuthViewChange={(view) => dispatch(authViewChanged(view))}
+            onAuthViewChange={handleAuthViewChange}
           />
         )}
         {authView === "signup" && (
@@ -99,7 +155,7 @@ const App = () => {
             onSignup={handleSignup}
             error={error}
             isLoading={isLoading}
-            onAuthViewChange={(view) => dispatch(authViewChanged(view))}
+            onAuthViewChange={handleAuthViewChange}
           />
         )}
         {authView === "google_onboarding" && (
@@ -108,7 +164,7 @@ const App = () => {
             error={error}
             isLoading={isLoading}
             onComplete={(payload) => dispatch(googleProfileCompleted(payload))}
-            onAuthViewChange={(view) => dispatch(authViewChanged(view))}
+            onAuthViewChange={handleAuthViewChange}
           />
         )}
         {authView === "verify" && (
@@ -118,7 +174,7 @@ const App = () => {
             emailError={pendingVerification?.emailError}
             canUseLocalVerification={Boolean(pendingVerification?.devVerificationToken)}
             onVerify={handleVerify}
-            onAuthViewChange={(view) => dispatch(authViewChanged(view))}
+            onAuthViewChange={handleAuthViewChange}
           />
         )}
         {authView === "reset" && (
@@ -127,7 +183,7 @@ const App = () => {
             error={error}
             isLoading={isLoading}
             onReset={(email) => dispatch(passwordResetRequested(email))}
-            onAuthViewChange={(view) => dispatch(authViewChanged(view))}
+            onAuthViewChange={handleAuthViewChange}
           />
         )}
       </AuthShell>
@@ -136,12 +192,12 @@ const App = () => {
 
   return (
     <AppLayout
-      activeRoute={activeRoute}
+      activeRoute={resolvedActiveRoute}
       routes={accessibleRoutes}
       user={session.user}
       searchValue={globalSearch}
       themeMode={themeMode}
-      onNavigate={(routeId) => dispatch(routeChanged(routeId))}
+      onNavigate={handleNavigate}
       onSearchChange={(value) => dispatch(searchChanged(value))}
       onThemeModeChange={(mode) => dispatch(themeModeChanged(mode))}
       onLogout={handleLogout}
@@ -149,7 +205,7 @@ const App = () => {
       {ActivePage && (
         <ActivePage
           searchValue={globalSearch}
-          onNavigate={(routeId) => dispatch(routeChanged(routeId))}
+          onNavigate={handleNavigate}
           pendingRouteAction={pendingRouteAction}
           onRouteActionHandled={() => dispatch(routeActionCleared())}
           user={session.user}

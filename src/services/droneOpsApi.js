@@ -11,6 +11,7 @@ export const droneOpsApi = {
     list: () => apiClient.get("/missions"),
     create: (payload) => apiClient.post("/missions", payload),
     update: (id, payload) => apiClient.put(`/missions/${id}`, payload),
+    approve: (id) => apiClient.post(`/missions/${id}/approve`, {}),
     start: (id) => apiClient.post(`/missions/${id}/start`, {}),
     complete: (id) => apiClient.post(`/missions/${id}/complete`, {}),
     replay: (id) => apiClient.get(`/missions/${id}/replay`)
@@ -48,9 +49,16 @@ export const droneOpsApi = {
     create: (payload) => apiClient.post("/geofences", payload)
   },
   users: {
-    list: () => apiClient.get("/users")
+    list: () => apiClient.get("/users"),
+    update: (id, payload) => apiClient.put(`/users/${id}`, payload),
+    remove: (id) => apiClient.delete(`/users/${id}`)
   },
   audit: {
-    list: () => apiClient.get("/audit")
+    list: (params = {}) => {
+      const query = new URLSearchParams(
+        Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
+      ).toString();
+      return apiClient.get(`/audit${query ? `?${query}` : ""}`);
+    }
   }
 };

@@ -1,4 +1,4 @@
-import { LoaderCircle } from "lucide-react";
+import LoadingLogo from "./LoadingLogo";
 
 const ActionButton = ({
   children,
@@ -10,8 +10,6 @@ const ActionButton = ({
   onClick,
   ...buttonProps
 }) => {
-  const ButtonIcon = isLoading ? LoaderCircle : Icon;
-
   return (
     <button
       className={`${variant}-button${isLoading ? " is-loading" : ""}`}
@@ -20,9 +18,11 @@ const ActionButton = ({
       aria-busy={isLoading}
       {...buttonProps}
     >
-      {ButtonIcon && iconPosition === "start" && <ButtonIcon className={isLoading ? "button-spinner" : undefined} size={17} />}
+      {isLoading && iconPosition === "start" && <LoadingLogo label="Loading" size="xs" compact />}
+      {!isLoading && Icon && iconPosition === "start" && <Icon size={17} />}
       {children}
-      {ButtonIcon && iconPosition === "end" && <ButtonIcon className={isLoading ? "button-spinner" : undefined} size={17} />}
+      {isLoading && iconPosition === "end" && <LoadingLogo label="Loading" size="xs" compact />}
+      {!isLoading && Icon && iconPosition === "end" && <Icon size={17} />}
     </button>
   );
 };

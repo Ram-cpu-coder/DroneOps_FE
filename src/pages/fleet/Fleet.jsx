@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Plane, Plus, Wrench, X } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import ActionButton from "../../components/common/ActionButton";
 import BatteryMeter from "../../components/common/BatteryMeter";
 import DataTable from "../../components/common/DataTable";
@@ -16,6 +17,8 @@ import DroneProfileDialog from "./components/DroneProfileDialog";
 import RegisterDroneForm from "./components/RegisterDroneForm";
 
 const Fleet = ({ searchValue, user }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [showRegisterDrone, setShowRegisterDrone] = useState(false);
   const [selectedDrone, setSelectedDrone] = useState(null);
   const [toast, setToast] = useState(null);
@@ -33,13 +36,24 @@ const Fleet = ({ searchValue, user }) => {
   const metricDrones = isFallback ? [] : normalizedDrones;
   const activeCount = metricDrones.filter((drone) => drone.status === "AVAILABLE").length;
   const maintenanceCount = metricDrones.filter((drone) => drone.status === "MAINTENANCE").length;
+  const routeDroneId = useMemo(() => getDetailId(location.pathname, "/fleet"), [location.pathname]);
+
+  useEffect(() => {
+    if (!routeDroneId) {
+      setSelectedDrone(null);
+      return;
+    }
+
+    const matchedDrone = normalizedDrones.find((drone) => String(drone.uuid ?? drone.id) === routeDroneId);
+    setSelectedDrone(matchedDrone ?? null);
+  }, [normalizedDrones, routeDroneId]);
 
   const columns = [
     {
       key: "id",
       label: "Drone",
       render: (drone) => (
-        <button className="link-button strong-link" type="button" onClick={() => setSelectedDrone(drone)}>
+        <button className="link-button strong-link" type="button" onClick={() => navigate(`/fleet/${encodeURIComponent(drone.uuid ?? drone.id)}`)}>
           <span>{drone.id}</span>
         </button>
       )
@@ -106,7 +120,7 @@ const Fleet = ({ searchValue, user }) => {
           canManage={canManageDrones}
           onUpdated={(updatedDrone) => {
             refresh();
-            setSelectedDrone(null);
+            navigate("/fleet");
             setToast({
               title: "Drone updated",
               message: `${updatedDrone.droneCode ?? updatedDrone.id} profile was saved.`
@@ -115,14 +129,14 @@ const Fleet = ({ searchValue, user }) => {
           }}
           onDeleted={(deletedDrone) => {
             refresh();
-            setSelectedDrone(null);
+            navigate("/fleet");
             setToast({
               title: "Drone deleted",
               message: `${deletedDrone.id} was removed from the fleet.`
             });
             window.setTimeout(() => setToast(null), 4500);
           }}
-          onClose={() => setSelectedDrone(null)}
+          onClose={() => navigate("/fleet")}
         />
       )}
 
@@ -166,6 +180,11 @@ const normalizeDrone = (drone, telemetryRows = []) => {
     pilot: drone.pilot ?? "Unassigned",
     nextMaintenance: drone.nextMaintenanceDate ? new Date(drone.nextMaintenanceDate).toLocaleDateString() : (drone.nextMaintenance ?? "Not scheduled")
   };
+};
+
+const getDetailId = (pathname, basePath) => {
+  if (pathname === basePath || !pathname.startsWith(`${basePath}/`)) return null;
+  return decodeURIComponent(pathname.slice(basePath.length + 1).split("/")[0] ?? "");
 };
 
 export default Fleet;

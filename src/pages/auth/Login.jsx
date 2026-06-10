@@ -126,7 +126,7 @@ const Login = ({ error, isLoading, onLogin, onGoogleLogin, onAuthViewChange }) =
           Forgot password?
         </button>
       </div>
-      <ActionButton icon={ArrowRight} iconPosition="end" variant="primary" type="submit" disabled={isLoading}>
+      <ActionButton icon={ArrowRight} iconPosition="end" variant="primary" type="submit" disabled={isLoading} isLoading={isLoading}>
         {isLoading ? "Logging in" : "Log In"}
       </ActionButton>
       <div className="auth-divider"><span>or</span></div>
