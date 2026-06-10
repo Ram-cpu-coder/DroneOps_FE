@@ -4,6 +4,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { PathLayer, PolygonLayer, ScatterplotLayer } from "@deck.gl/layers";
+import LoadingLogo from "../common/LoadingLogo";
 import { geofenceZones, mapCenter } from "../../data/geospatialData";
 import { droneOpsApi } from "../../services/droneOpsApi";
 
@@ -408,7 +409,7 @@ const GeospatialMap = () => {
             <Home size={17} />
           </button>
           <button className="icon-button" type="button" aria-label="Refresh telemetry" onClick={() => refreshTelemetryNow(telemetryTimerRef, setIsRefreshing, setMapError)}>
-            <RefreshCw className={isRefreshing ? "button-spinner" : undefined} size={17} />
+            {isRefreshing ? <LoadingLogo label="Refreshing telemetry" size="xs" compact /> : <RefreshCw size={17} />}
           </button>
         </div>
       </div>

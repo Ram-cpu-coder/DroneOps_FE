@@ -1,7 +1,10 @@
-import { AlertTriangle, Bell, CheckCircle2, LoaderCircle, Moon, Monitor, RefreshCw, Search, Sun, UserRound } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, Bell, CheckCircle2, Moon, Monitor, RefreshCw, Search, Sun, UserRound } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import LoadingLogo from "../common/LoadingLogo";
 import { hasClientPermission } from "../../features/auth/accessControl";
 import { droneOpsApi } from "../../services/droneOpsApi";
+import { buildNotificationsFromEvents } from "../../utils/activityStream";
 
 const themeOptions = [
   { id: "default", label: "Default", icon: Monitor },
@@ -10,6 +13,8 @@ const themeOptions = [
 ];
 
 const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChange, onThemeModeChange }) => {
+  const navigate = useNavigate();
+  const notificationRef = useRef(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationError, setNotificationError] = useState("");
@@ -18,7 +23,7 @@ const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChan
   const storageKey = useMemo(() => `droneops-read-notifications:${user?.id ?? "anonymous"}`, [user?.id]);
   const [readNotificationIds, setReadNotificationIds] = useState([]);
   const unreadCount = useMemo(
-    () => notifications.filter((item) => item.priority !== "info" && !readNotificationIds.includes(item.id)).length,
+    () => notifications.filter((item) => !readNotificationIds.includes(item.id)).length,
     [notifications, readNotificationIds]
   );
 
@@ -31,17 +36,13 @@ const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChan
     setNotificationError("");
 
     try {
-      const [dronesResult, missionsResult, incidentsResult, telemetryResult] = await Promise.all([
-        canRead("fleet") ? droneOpsApi.drones.list().catch(() => []) : [],
-        canRead("missions") ? droneOpsApi.missions.list().catch(() => []) : [],
-        canRead("incidents") ? droneOpsApi.incidents.list().catch(() => []) : [],
+      const [auditResult, telemetryResult] = await Promise.all([
+        canRead("audit:read") ? droneOpsApi.audit.list({ limit: 20 }).catch(() => []) : [],
         canRead("telemetry:read") ? droneOpsApi.telemetry.live().catch(() => []) : []
       ]);
 
-      setNotifications(buildNotifications({
-        drones: dronesResult,
-        missions: missionsResult,
-        incidents: incidentsResult,
+      setNotifications(buildNotificationsFromEvents({
+        auditLogs: auditResult,
         telemetryRows: telemetryResult
       }));
       setLastLoadedAt(Date.now());
@@ -67,6 +68,17 @@ const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChan
     return () => window.clearInterval(intervalId);
   }, [loadNotifications]);
 
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!notificationRef.current?.contains(event.target)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+
   const markNotificationsRead = useCallback((items) => {
     if (!items.length) return;
 
@@ -82,7 +94,15 @@ const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChan
     setIsNotificationsOpen(nextOpenState);
     if (nextOpenState) {
       loadNotifications();
-      markNotificationsRead(notifications);
+    }
+  };
+
+  const handleNotificationItemClick = (item) => {
+    markNotificationsRead([item]);
+    setIsNotificationsOpen(false);
+
+    if (item.targetPath) {
+      navigate(item.targetPath);
     }
   };
 
@@ -102,7 +122,7 @@ const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChan
             placeholder="Search drones, missions, incidents"
           />
         </label>
-        <div className="notification-shell">
+        <div className="notification-shell" ref={notificationRef}>
           <button
             className="icon-button notification-button"
             type="button"
@@ -137,7 +157,7 @@ const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChan
                     onClick={() => loadNotifications({ force: true })}
                     disabled={isNotificationLoading}
                   >
-                    {isNotificationLoading ? <LoaderCircle className="button-spinner" size={15} /> : <RefreshCw size={15} />}
+                    {isNotificationLoading ? <LoadingLogo label="Refreshing notifications" size="xs" compact /> : <RefreshCw size={15} />}
                   </button>
                 </div>
               </div>
@@ -156,14 +176,19 @@ const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChan
                 {notifications.map((item) => {
                   const Icon = item.priority === "info" ? CheckCircle2 : AlertTriangle;
                   return (
-                    <article className={`notification-item ${item.priority}`} key={item.id}>
+                    <button
+                      className={`notification-item ${item.priority}`}
+                      key={item.id}
+                      type="button"
+                      onClick={() => handleNotificationItemClick(item)}
+                    >
                       <Icon size={18} />
                       <div>
                         <strong>{item.title}</strong>
                         <p>{item.message}</p>
                         <span>{item.time}</span>
                       </div>
-                    </article>
+                    </button>
                   );
                 })}
               </div>
@@ -196,81 +221,6 @@ const TopBar = ({ title, description, user, searchValue, themeMode, onSearchChan
       </div>
     </header>
   );
-};
-
-const buildNotifications = ({ drones = [], missions = [], incidents = [], telemetryRows = [] }) => {
-  const items = [
-    ...drones
-      .filter((drone) => ["GROUNDED", "MAINTENANCE", "DISCONNECTED"].includes(drone.status))
-      .map((drone) => ({
-        id: `drone-${drone.id}`,
-        title: `${drone.droneCode ?? "Drone"} needs attention`,
-        message: `Status is ${formatStatus(drone.status)}.`,
-        priority: drone.status === "GROUNDED" || drone.status === "DISCONNECTED" ? "critical" : "warning",
-        timestamp: drone.updatedAt
-      })),
-    ...missions
-      .filter((mission) => ["ACTIVE", "PLANNED", "APPROVED"].includes(mission.status))
-      .slice(0, 4)
-      .map((mission) => ({
-        id: `mission-${mission.id}`,
-        title: mission.status === "ACTIVE" ? "Mission active" : "Mission scheduled",
-        message: `${mission.name ?? mission.missionCode ?? "Mission"} is ${formatStatus(mission.status)}.`,
-        priority: mission.status === "ACTIVE" ? "info" : "warning",
-        timestamp: mission.updatedAt ?? mission.plannedStartAt
-      })),
-    ...incidents
-      .filter((incident) => !["CLOSED", "RESOLVED"].includes(incident.status))
-      .map((incident) => ({
-        id: `incident-${incident.id}`,
-        title: "Open incident",
-        message: `${incident.title ?? incident.incidentCode ?? "Incident"} is ${formatStatus(incident.status)}.`,
-        priority: ["HIGH", "CRITICAL"].includes(incident.severity) ? "critical" : "warning",
-        timestamp: incident.updatedAt ?? incident.createdAt
-      })),
-    ...telemetryRows.flatMap((row) => {
-      const telemetry = row.telemetry ?? row;
-      const droneLabel = row.drone?.droneCode ?? telemetry.droneId ?? "Drone";
-      const alerts = [];
-      if (Number(telemetry.battery?.level ?? telemetry.batteryLevel) < 20) {
-        alerts.push({
-          id: `battery-${row.drone?.id ?? telemetry.droneId ?? droneLabel}`,
-          title: "Low battery",
-          message: `${droneLabel} battery is at ${telemetry.battery?.level ?? telemetry.batteryLevel}%.`,
-          priority: "critical",
-          timestamp: telemetry.timestamp
-        });
-      }
-      if (Number(telemetry.signal?.strength ?? telemetry.signalStrength) < 45) {
-        alerts.push({
-          id: `signal-${row.drone?.id ?? telemetry.droneId ?? droneLabel}`,
-          title: "Weak signal",
-          message: `${droneLabel} signal strength is ${telemetry.signal?.strength ?? telemetry.signalStrength}%.`,
-          priority: "warning",
-          timestamp: telemetry.timestamp
-        });
-      }
-      return alerts;
-    })
-  ];
-
-  return items
-    .filter((item) => item.timestamp)
-    .sort((left, right) => new Date(right.timestamp) - new Date(left.timestamp))
-    .slice(0, 8)
-    .map((item) => ({ ...item, time: formatRelativeTime(item.timestamp) }));
-};
-
-const formatStatus = (status = "") => status.toString().toLowerCase().replaceAll("_", " ");
-
-const formatRelativeTime = (timestamp) => {
-  const date = new Date(timestamp);
-  const diffMinutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
-  if (diffMinutes < 1) return "Just now";
-  if (diffMinutes < 60) return `${diffMinutes} min ago`;
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours} hr${diffHours === 1 ? "" : "s"} ago`;
-  return date.toLocaleDateString();
 };
 
 export default TopBar;

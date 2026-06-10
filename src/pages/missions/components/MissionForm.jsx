@@ -6,6 +6,7 @@ import { useApiResource } from "../../../hooks/useApiResource";
 import { droneOpsApi } from "../../../services/droneOpsApi";
 
 const missionTypes = ["Mapping", "Inspection", "Security", "Delivery", "Training", "Emergency Response"];
+const missionStatuses = ["PLANNED", "APPROVED", "ACTIVE", "COMPLETED", "ABORTED", "CANCELLED"];
 
 const initialForm = {
   missionCode: "",
@@ -18,11 +19,12 @@ const initialForm = {
   plannedDate: "",
   startTime: "",
   endTime: "",
+  status: "PLANNED",
   waypointNotes: ""
 };
 
-const MissionForm = ({ onCreated, onCancel }) => {
-  const [form, setForm] = useState(initialForm);
+const MissionForm = ({ mission = null, mode = "create", canEditStatus = false, onCreated, onUpdated, onCancel }) => {
+  const [form, setForm] = useState(() => toFormState(mission));
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
@@ -31,15 +33,19 @@ const MissionForm = ({ onCreated, onCancel }) => {
   const { data: drones } = useApiResource(loadDrones, []);
   const { data: users } = useApiResource(loadUsers, []);
 
+  useEffect(() => {
+    setForm(toFormState(mission));
+  }, [mission]);
+
   const droneOptions = useMemo(
     () => drones
-      .filter((drone) => drone.status === "AVAILABLE")
+      .filter((drone) => drone.status === "AVAILABLE" || drone.id === form.droneId)
       .map((drone) => ({
         value: drone.id,
         label: `${drone.droneCode ?? drone.id} - ${drone.model}`,
         searchText: `${drone.droneCode ?? drone.id} ${drone.model ?? ""} ${drone.manufacturer ?? ""} ${drone.serialNumber ?? ""}`.toLowerCase()
       })),
-    [drones]
+    [drones, form.droneId]
   );
 
   const pilotOptions = useMemo(
@@ -82,7 +88,7 @@ const MissionForm = ({ onCreated, onCancel }) => {
     setError("");
 
     try {
-      const mission = await droneOpsApi.missions.create({
+      const payload = {
         missionCode: form.missionCode,
         name: form.name,
         type: form.type,
@@ -92,15 +98,27 @@ const MissionForm = ({ onCreated, onCancel }) => {
         operatingArea: form.operatingArea || undefined,
         plannedStartAt: buildDateTime(form.plannedDate, form.startTime),
         plannedEndAt: buildDateTime(form.plannedDate, form.endTime),
-        plannedRoute: form.waypointNotes ? { notes: form.waypointNotes } : undefined
-      });
+        plannedRoute: form.waypointNotes ? { notes: form.waypointNotes } : undefined,
+        ...(canEditStatus && mode === "edit" ? { status: form.status } : {})
+      };
+
+      const savedMission = mode === "edit" && mission?.uuid
+        ? await droneOpsApi.missions.update(mission.uuid, payload)
+        : await droneOpsApi.missions.create(payload);
 
       setForm(initialForm);
       setIsConfirmed(false);
-      onCreated?.({
-        ...mission,
-        missionCode: mission.missionCode ?? form.missionCode
-      });
+      if (mode === "edit") {
+        onUpdated?.({
+          ...savedMission,
+          missionCode: savedMission.missionCode ?? form.missionCode
+        });
+      } else {
+        onCreated?.({
+          ...savedMission,
+          missionCode: savedMission.missionCode ?? form.missionCode
+        });
+      }
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -114,8 +132,8 @@ const MissionForm = ({ onCreated, onCancel }) => {
         <div className="modal-header">
           <div>
             <p className="eyebrow">Mission Planning</p>
-            <h2 id="create-mission-title">Create Mission</h2>
-            <p>Set the mission details, assign a drone and pilot, and schedule the operation.</p>
+            <h2 id="create-mission-title">{mode === "edit" ? "Update Mission" : "Create Mission"}</h2>
+            <p>{mode === "edit" ? "Adjust the mission plan, assignments, and schedule." : "Set the mission details, assign a drone and pilot, and schedule the operation."}</p>
           </div>
           <button className="icon-button" type="button" onClick={onCancel} aria-label="Close mission form">
             <X size={18} />
@@ -155,6 +173,9 @@ const MissionForm = ({ onCreated, onCancel }) => {
               <Field label="Planned Date" type="date" value={form.plannedDate} onChange={(value) => updateField("plannedDate", value)} />
               <Field label="Start Time" type="time" value={form.startTime} onChange={(value) => updateField("startTime", value)} />
               <Field label="End Time" type="time" value={form.endTime} onChange={(value) => updateField("endTime", value)} />
+              {canEditStatus && mode === "edit" && (
+                <SelectField label="Mission Status" value={form.status} onChange={(value) => updateField("status", value)} options={missionStatuses} />
+              )}
             </FormSection>
 
             <FormSection icon={MapPinned} title="Route Notes">
@@ -181,7 +202,7 @@ const MissionForm = ({ onCreated, onCancel }) => {
           <div className="form-actions">
             <ActionButton onClick={onCancel}>Cancel</ActionButton>
             <ActionButton icon={Save} variant="primary" type="submit" disabled={isSaving || !isConfirmed}>
-              {isSaving ? "Creating" : "Create Mission"}
+              {isSaving ? (mode === "edit" ? "Saving" : "Creating") : (mode === "edit" ? "Save Mission" : "Create Mission")}
             </ActionButton>
           </div>
         </div>
@@ -323,5 +344,27 @@ const TextareaField = ({ label, placeholder = "", value, onChange }) => (
     <textarea value={value ?? ""} onChange={(event) => onChange?.(event.target.value)} placeholder={placeholder} rows={4} />
   </label>
 );
+
+const toFormState = (mission) => {
+  if (!mission) return initialForm;
+
+  const plannedStart = mission.plannedStartAt ? new Date(mission.plannedStartAt) : null;
+  const plannedEnd = mission.plannedEndAt ? new Date(mission.plannedEndAt) : null;
+
+  return {
+    missionCode: mission.missionCode ?? mission.id ?? "",
+    name: mission.name ?? "",
+    type: mission.type ?? "",
+    droneId: mission.drone?.id ?? mission.droneId ?? "",
+    pilotId: mission.pilot?.id ?? mission.pilotId ?? "",
+    launchSite: mission.launchSite ?? "",
+    operatingArea: mission.operatingArea ?? "",
+    plannedDate: plannedStart ? plannedStart.toISOString().slice(0, 10) : "",
+    startTime: plannedStart ? plannedStart.toTimeString().slice(0, 5) : "",
+    endTime: plannedEnd ? plannedEnd.toTimeString().slice(0, 5) : "",
+    status: mission.rawStatus ?? mission.status ?? "PLANNED",
+    waypointNotes: mission.plannedRoute?.notes ?? mission.routeNotes ?? ""
+  };
+};
 
 export default MissionForm;

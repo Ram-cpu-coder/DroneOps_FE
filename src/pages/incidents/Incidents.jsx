@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ShieldCheck, UserRoundCheck, X } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import ActionButton from "../../components/common/ActionButton";
 import DataTable from "../../components/common/DataTable";
 import MetricCard from "../../components/common/MetricCard";
@@ -14,6 +15,8 @@ import IncidentForm from "./components/IncidentForm";
 import IncidentProfileDialog from "./components/IncidentProfileDialog";
 
 const Incidents = ({ searchValue, user }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [toast, setToast] = useState(null);
@@ -24,6 +27,7 @@ const Incidents = ({ searchValue, user }) => {
   const normalizedIncidents = useMemo(() => apiIncidents.map(normalizeIncident), [apiIncidents]);
   const filteredIncidents = useFleetSearch(normalizedIncidents, searchValue);
   const metricIncidents = isFallback ? [] : normalizedIncidents;
+  const routeIncidentId = useMemo(() => getDetailId(location.pathname, "/incidents"), [location.pathname]);
   const openIncidentCount = metricIncidents.filter((incident) => !["CLOSED", "Closed", "RESOLVED", "Resolved"].includes(incident.status)).length;
   const highCount = metricIncidents.filter((incident) => ["HIGH", "CRITICAL", "High", "Critical"].includes(incident.severity)).length;
   const assignedOwnerCount = new Set(
@@ -32,12 +36,22 @@ const Incidents = ({ searchValue, user }) => {
       .filter((owner) => owner && owner !== "Unassigned")
   ).size;
 
+  useEffect(() => {
+    if (!routeIncidentId) {
+      setSelectedIncident(null);
+      return;
+    }
+
+    const matchedIncident = normalizedIncidents.find((incident) => String(incident.uuid ?? incident.idRaw ?? incident.id) === routeIncidentId);
+    setSelectedIncident(matchedIncident ?? null);
+  }, [normalizedIncidents, routeIncidentId]);
+
   const columns = [
     {
       key: "id",
       label: "Incident",
       render: (incident) => (
-        <button className="link-button strong-link" type="button" onClick={() => setSelectedIncident(incident)}>
+        <button className="link-button strong-link" type="button" onClick={() => navigate(`/incidents/${encodeURIComponent(incident.uuid ?? incident.idRaw ?? incident.id)}`)}>
           <span>{incident.id}</span>
         </button>
       )
@@ -66,17 +80,17 @@ const Incidents = ({ searchValue, user }) => {
           canManage={canManageIncident}
           onUpdated={() => {
             refresh();
-            setSelectedIncident(null);
+            navigate("/incidents");
             setToast({ title: "Incident updated", message: `${selectedIncident.id} was updated successfully.` });
             window.setTimeout(() => setToast(null), 4500);
           }}
           onDeleted={() => {
             refresh();
-            setSelectedIncident(null);
+            navigate("/incidents");
             setToast({ title: "Incident deleted", message: `${selectedIncident.id} was removed from the register.` });
             window.setTimeout(() => setToast(null), 4500);
           }}
-          onClose={() => setSelectedIncident(null)}
+          onClose={() => navigate("/incidents")}
         />
       )}
       {toast && (
@@ -141,6 +155,8 @@ const Incidents = ({ searchValue, user }) => {
 
 const normalizeIncident = (incident) => ({
   ...incident,
+  uuid: incident.id,
+  idRaw: incident.id,
   id: incident.incidentCode ?? incident.id,
   owner: incident.assignedTo?.name ?? incident.reportedBy?.name ?? incident.owner ?? "Unassigned",
   place: incident.location ?? incident.place ?? "No location",
@@ -150,5 +166,10 @@ const normalizeIncident = (incident) => ({
   missionLabel: incident.mission?.missionCode ?? incident.mission?.name ?? incident.mission ?? "",
   typeLabel: incident.type?.toString().toLowerCase().replaceAll("_", " ")
 });
+
+const getDetailId = (pathname, basePath) => {
+  if (pathname === basePath || !pathname.startsWith(`${basePath}/`)) return null;
+  return decodeURIComponent(pathname.slice(basePath.length + 1).split("/")[0] ?? "");
+};
 
 export default Incidents;

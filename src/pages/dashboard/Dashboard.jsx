@@ -1,9 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, AlertTriangle, MapPin, Plane } from "lucide-react";
 import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import LoadingLogo from "../../components/common/LoadingLogo";
 import MetricCard from "../../components/common/MetricCard";
 import { hasClientPermission } from "../../features/auth/accessControl";
-import { routeActionRequested, routeChanged } from "../../features/ui/uiSlice";
+import { routeActionRequested } from "../../features/ui/uiSlice";
 import { useApiResource } from "../../hooks/useApiResource";
 import { droneOpsApi } from "../../services/droneOpsApi";
 import ActivityFeed from "./components/ActivityFeed";
@@ -11,7 +13,7 @@ import FleetOverviewTable from "./components/FleetOverviewTable";
 import IncidentWatch from "./components/IncidentWatch";
 import MissionQueue from "./components/MissionQueue";
 import { useFleetSearch } from "../../hooks/useFleetSearch";
-import DroneProfileDialog from "../fleet/components/DroneProfileDialog";
+import { buildRecentActivityFromAudit, formatRelativeTime } from "../../utils/activityStream";
 
 const metricIcons = [Plane, Activity, AlertTriangle, MapPin];
 const GeospatialMap = lazy(() => import("../../components/maps/GeospatialMap"));
@@ -21,12 +23,13 @@ const emptyDashboardData = {
   missions: [],
   incidents: [],
   reports: [],
-  maintenance: []
+  maintenance: [],
+  auditLogs: []
 };
 
-const Dashboard = ({ searchValue, user }) => {
+const Dashboard = ({ searchValue, user, onNavigate }) => {
   const dispatch = useDispatch();
-  const [selectedDrone, setSelectedDrone] = useState(null);
+  const navigate = useNavigate();
   const [showLivePanels, setShowLivePanels] = useState(false);
   const canRead = useCallback((permission) => hasClientPermission(user, permission), [user]);
   const loadTelemetry = useCallback(() => {
@@ -34,13 +37,14 @@ const Dashboard = ({ searchValue, user }) => {
     return droneOpsApi.telemetry.live();
   }, [canRead, showLivePanels]);
   const loadDashboardData = useCallback(async () => {
-    const [summaryResult, dronesResult, missionsResult, incidentsResult, reportsResult, maintenanceResult] = await Promise.all([
+    const [summaryResult, dronesResult, missionsResult, incidentsResult, reportsResult, maintenanceResult, auditResult] = await Promise.all([
       canRead("reports:read") ? droneOpsApi.reports.summary().catch(() => null) : null,
       canRead("fleet") || canRead("drones:read") ? droneOpsApi.drones.list().catch(() => []) : [],
       canRead("missions") || canRead("missions:read") ? droneOpsApi.missions.list().catch(() => []) : [],
       canRead("incidents") || canRead("incidents:read") ? droneOpsApi.incidents.list().catch(() => []) : [],
       canRead("reports") || canRead("reports:read") ? droneOpsApi.reports.list().catch(() => []) : [],
-      canRead("maintenance:manage") ? droneOpsApi.maintenance.list().catch(() => []) : []
+      canRead("maintenance:manage") ? droneOpsApi.maintenance.list().catch(() => []) : [],
+      canRead("audit:read") ? droneOpsApi.audit.list({ limit: 20 }).catch(() => []) : []
     ]);
 
     return {
@@ -49,7 +53,8 @@ const Dashboard = ({ searchValue, user }) => {
       missions: missionsResult,
       incidents: incidentsResult,
       reports: reportsResult,
-      maintenance: maintenanceResult
+      maintenance: maintenanceResult,
+      auditLogs: auditResult
     };
   }, [canRead]);
 
@@ -60,12 +65,21 @@ const Dashboard = ({ searchValue, user }) => {
 
   const { data: dashboardData, isLoading: isDashboardLoading, error: dashboardError, refresh: refreshDashboard } = useApiResource(loadDashboardData, emptyDashboardData);
   const { data: telemetryRows } = useApiResource(loadTelemetry, []);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      refreshDashboard();
+    }, 60000);
+
+    return () => window.clearInterval(intervalId);
+  }, [refreshDashboard]);
   const summary = dashboardData?.summary;
   const apiDrones = dashboardData?.drones ?? [];
   const apiMissions = dashboardData?.missions ?? [];
   const apiIncidents = dashboardData?.incidents ?? [];
   const apiReports = dashboardData?.reports ?? [];
   const apiMaintenance = dashboardData?.maintenance ?? [];
+  const apiAuditLogs = dashboardData?.auditLogs ?? [];
 
   const dashboardMetrics = useMemo(() => {
     if (isDashboardLoading && !apiDrones.length && !apiMissions.length && !apiIncidents.length) {
@@ -93,12 +107,7 @@ const Dashboard = ({ searchValue, user }) => {
 
   const normalizedDrones = useMemo(() => apiDrones.map((drone) => normalizeDrone(drone, telemetryRows)), [apiDrones, telemetryRows]);
   const filteredDrones = useFleetSearch(normalizedDrones, searchValue);
-  const recentActivity = useMemo(() => buildRecentActivity({
-    drones: apiDrones,
-    missions: apiMissions,
-    incidents: apiIncidents,
-    reports: apiReports
-  }), [apiDrones, apiIncidents, apiMissions, apiReports]);
+  const recentActivity = useMemo(() => buildRecentActivityFromAudit(apiAuditLogs), [apiAuditLogs]);
   const dashboardMissions = useMemo(
     () => apiMissions.map(normalizeMissionCard).slice(0, 3),
     [apiMissions]
@@ -106,27 +115,11 @@ const Dashboard = ({ searchValue, user }) => {
 
   const handleNewMission = () => {
     dispatch(routeActionRequested({ routeId: "missions", action: "create" }));
-    dispatch(routeChanged("missions"));
+    onNavigate?.("missions");
   };
 
   return (
     <>
-      {selectedDrone && (
-        <DroneProfileDialog
-          drone={selectedDrone}
-          canManage={canRead("drones:manage")}
-          onUpdated={() => {
-            refreshDashboard();
-            setSelectedDrone(null);
-          }}
-          onDeleted={() => {
-            refreshDashboard();
-            setSelectedDrone(null);
-          }}
-          onClose={() => setSelectedDrone(null)}
-        />
-      )}
-
       <section className="stats-grid" aria-label="Fleet summary">
         {dashboardMetrics.map((metric, index) => (
           <MetricCard key={metric.label} {...metric} icon={metricIcons[index]} />
@@ -135,14 +128,18 @@ const Dashboard = ({ searchValue, user }) => {
 
       <section className="content-grid dashboard-grid">
         {dashboardError && <div className="auth-alert dashboard-alert">Some dashboard data could not be loaded: {dashboardError}</div>}
-        <FleetOverviewTable drones={filteredDrones.slice(0, 5)} isLoading={isDashboardLoading} onDroneSelect={setSelectedDrone} />
+        <FleetOverviewTable
+          drones={filteredDrones.slice(0, 5)}
+          isLoading={isDashboardLoading}
+          onDroneSelect={(drone) => navigate(`/fleet/${encodeURIComponent(drone.uuid ?? drone.id)}`)}
+        />
         {showLivePanels && canRead("telemetry:read") ? (
-          <Suspense fallback={<div className="panel map-panel map-loading">Loading telemetry map...</div>}>
+          <Suspense fallback={<div className="panel map-panel map-loading"><LoadingLogo label="Loading telemetry map" /></div>}>
             <GeospatialMap />
           </Suspense>
         ) : (
           <div className="panel map-panel map-loading">
-            {canRead("telemetry:read") ? "Preparing telemetry map..." : "Telemetry access is not enabled for this role."}
+            {canRead("telemetry:read") ? <LoadingLogo label="Preparing telemetry map" /> : "Telemetry access is not enabled for this role."}
           </div>
         )}
         <MissionQueue
@@ -197,107 +194,5 @@ const normalizeIncidentCard = (incident) => ({
   status: incident.status,
   severity: incident.severity
 });
-
-const buildRecentActivity = ({ drones = [], missions = [], incidents = [], reports = [] }) => {
-  const items = [
-    ...drones.flatMap((drone) => buildDroneActivity(drone)),
-    ...missions.flatMap((mission) => buildMissionActivity(mission)),
-    ...incidents.flatMap((incident) => buildIncidentActivity(incident)),
-    ...reports.flatMap((report) => buildReportActivity(report))
-  ];
-
-  return items
-    .filter((item) => item.timestamp)
-    .sort((left, right) => new Date(right.timestamp) - new Date(left.timestamp))
-    .slice(0, 6)
-    .map((item) => ({
-      ...item,
-      time: formatRelativeTime(item.timestamp)
-    }));
-};
-
-const buildDroneActivity = (drone) => {
-  const label = drone.droneCode ?? drone.id;
-  return [
-    {
-      id: `drone-created-${drone.id}`,
-      label: `${label} added to fleet`,
-      timestamp: drone.createdAt,
-      type: "drone"
-    },
-    {
-      id: `drone-updated-${drone.id}`,
-      label: `${label} status is ${formatStatus(drone.status)}`,
-      timestamp: drone.updatedAt,
-      type: "success"
-    }
-  ];
-};
-
-const buildMissionActivity = (mission) => {
-  const label = mission.missionCode ?? mission.name ?? mission.id;
-  return [
-    {
-      id: `mission-created-${mission.id}`,
-      label: `${label} mission created`,
-      timestamp: mission.createdAt,
-      type: "mission"
-    },
-    {
-      id: `mission-updated-${mission.id}`,
-      label: `${label} is ${formatStatus(mission.status)}`,
-      timestamp: mission.updatedAt,
-      type: "mission"
-    }
-  ];
-};
-
-const buildIncidentActivity = (incident) => {
-  const label = incident.incidentCode ?? incident.title ?? incident.id;
-  return [
-    {
-      id: `incident-created-${incident.id}`,
-      label: `${label} incident logged`,
-      timestamp: incident.createdAt,
-      type: "incident"
-    },
-    {
-      id: `incident-updated-${incident.id}`,
-      label: `${label} is ${formatStatus(incident.status)}`,
-      timestamp: incident.updatedAt,
-      type: "incident"
-    }
-  ];
-};
-
-const buildReportActivity = (report) => [
-  {
-    id: `report-created-${report.id}`,
-    label: `${report.title ?? report.name ?? "Report"} generated`,
-    timestamp: report.createdAt,
-    type: "report"
-  }
-];
-
-const formatStatus = (status = "") => {
-  return status.toString().toLowerCase().replaceAll("_", " ");
-};
-
-const formatRelativeTime = (timestamp) => {
-  const date = new Date(timestamp);
-  const diffMs = Date.now() - date.getTime();
-  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
-
-  if (diffMinutes < 1) return "Just now";
-  if (diffMinutes < 60) return `${diffMinutes} min ago`;
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours} hr${diffHours === 1 ? "" : "s"} ago`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
-
-  return date.toLocaleDateString();
-};
 
 export default Dashboard;

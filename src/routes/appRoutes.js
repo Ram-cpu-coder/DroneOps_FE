@@ -19,6 +19,7 @@ import UserManagement from "../pages/users/UserManagement";
 export const appRoutes = [
   {
     id: "dashboard",
+    path: "/dashboard",
     label: "Dashboard",
     description: "Fleet health, mission status, alerts, and operational activity.",
     icon: Grid2X2,
@@ -27,6 +28,7 @@ export const appRoutes = [
   },
   {
     id: "fleet",
+    path: "/fleet",
     label: "Fleet",
     description: "Aircraft inventory, dock status, maintenance, payloads, and telemetry readiness.",
     icon: Plane,
@@ -35,6 +37,7 @@ export const appRoutes = [
   },
   {
     id: "missions",
+    path: "/missions",
     label: "Missions",
     description: "Mission planning, route progress, assigned drones, and scheduled work.",
     icon: MapPin,
@@ -43,6 +46,7 @@ export const appRoutes = [
   },
   {
     id: "incidents",
+    path: "/incidents",
     label: "Incidents",
     description: "Open alerts, severity handling, incident ownership, and audit trail.",
     icon: AlertTriangle,
@@ -51,6 +55,7 @@ export const appRoutes = [
   },
   {
     id: "reports",
+    path: "/reports",
     label: "Reports",
     description: "Utilization, safety, compliance, energy, and export-ready summaries.",
     icon: ClipboardList,
@@ -59,6 +64,7 @@ export const appRoutes = [
   },
   {
     id: "users",
+    path: "/users",
     label: "Users",
     description: "Manage users, verification status, role assignments, and access control.",
     icon: Users,
@@ -68,6 +74,7 @@ export const appRoutes = [
   },
   {
     id: "settings",
+    path: "/settings",
     label: "Settings",
     description: "Operational thresholds, team access, notification rules, and integrations.",
     icon: Settings,
