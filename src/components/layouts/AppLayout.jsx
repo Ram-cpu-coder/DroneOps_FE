@@ -25,6 +25,7 @@ const AppLayout = ({
         <TopBar
           title={currentRoute.label}
           description={currentRoute.description}
+          routes={routes}
           user={user}
           searchValue={searchValue}
           themeMode={themeMode}

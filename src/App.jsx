@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "./components/layouts/AppLayout";
+import LoadingLogo from "./components/common/LoadingLogo";
 import { canAccessRoute, firstAccessibleRoute } from "./features/auth/accessControl";
 import {
   authViewChanged,
@@ -10,6 +11,7 @@ import {
   loggedOut,
   loginRequested,
   passwordResetRequested,
+  sessionRestoreRequested,
   signupRequested,
   verificationCompleted
 } from "./features/auth/authSlice";
@@ -42,7 +44,8 @@ const App = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { session, authView, pendingVerification, pendingGoogleProfile, error, passwordReset, isLoading } = useSelector((state) => state.auth);
+  const restoredRouteHandledRef = useRef(false);
+  const { session, authView, pendingVerification, pendingGoogleProfile, error, passwordReset, isLoading, isBootstrapping, restoredSession } = useSelector((state) => state.auth);
   const { activeRoute, globalSearch, pendingRouteAction, themeMode } = useSelector((state) => state.ui);
 
   const accessibleRoutes = useMemo(() => {
@@ -61,6 +64,10 @@ const App = () => {
   }, [themeMode]);
 
   useEffect(() => {
+    dispatch(sessionRestoreRequested());
+  }, [dispatch]);
+
+  useEffect(() => {
     const handleSessionExpired = () => {
       dispatch(loggedOut());
       dispatch(uiReset());
@@ -72,6 +79,8 @@ const App = () => {
   }, [dispatch, navigate]);
 
   useEffect(() => {
+    if (isBootstrapping) return;
+
     if (!session?.user) {
       const nextAuthView = authPathToView[location.pathname] ?? authView;
       const nextAuthPath = authViewToPath[nextAuthView] ?? "/login";
@@ -96,7 +105,17 @@ const App = () => {
     if (!currentAppRoute && location.pathname !== nextRoute.path) {
       navigate(nextRoute.path, { replace: true });
     }
-  }, [activeRoute, authView, currentAppRoute, dispatch, location.pathname, navigate, session]);
+  }, [activeRoute, authView, currentAppRoute, dispatch, isBootstrapping, location.pathname, navigate, session]);
+
+  useEffect(() => {
+    if (!restoredSession || restoredRouteHandledRef.current || !session?.user) return;
+
+    restoredRouteHandledRef.current = true;
+    if (location.pathname !== "/dashboard") {
+      dispatch(routeChanged("dashboard"));
+      navigate("/dashboard", { replace: true });
+    }
+  }, [dispatch, location.pathname, navigate, restoredSession, session]);
 
   const handleNavigate = useCallback((routeId) => {
     const nextRoute = accessibleRoutes.find((route) => route.id === routeId);
@@ -132,8 +151,18 @@ const App = () => {
     navigate("/login", { replace: true });
   }, [dispatch, navigate]);
 
+  const shouldResetRestoredRoute = restoredSession && !restoredRouteHandledRef.current && session?.user && location.pathname !== "/dashboard";
   const ActivePage = currentAppRoute?.component ?? accessibleRoutes[0]?.component;
   const resolvedActiveRoute = currentAppRoute?.id ?? accessibleRoutes[0]?.id ?? activeRoute;
+
+  if (isBootstrapping || shouldResetRestoredRoute) {
+    return (
+      <div className="app-boot-screen">
+        <LoadingLogo label="Restoring DroneOps session" size="lg" />
+        <p>Checking your session before loading operations data.</p>
+      </div>
+    );
+  }
 
   if (!session?.user) {
     return (

@@ -53,14 +53,24 @@ export const logoutRequested = createAsyncThunk("auth/logoutRequested", async ()
   await authService.logout();
 });
 
+export const sessionRestoreRequested = createAsyncThunk(
+  "auth/sessionRestoreRequested",
+  async () => authService.restoreSession(),
+  {
+    condition: () => authService.hasStoredSession()
+  }
+);
+
 const initialState = {
-  session: authService.getSession(),
+  session: authService.hasStoredSession() ? null : authService.getSession(),
   authView: "login",
   pendingVerification: null,
   pendingGoogleProfile: null,
   passwordReset: null,
   error: "",
-  isLoading: false
+  isLoading: false,
+  isBootstrapping: authService.hasStoredSession(),
+  restoredSession: false
 };
 
 const authSlice = createSlice({
@@ -79,6 +89,8 @@ const authSlice = createSlice({
       state.pendingVerification = null;
       state.pendingGoogleProfile = null;
       state.error = "";
+      state.isBootstrapping = false;
+      state.restoredSession = false;
     }
   },
   extraReducers: (builder) => {
@@ -90,6 +102,7 @@ const authSlice = createSlice({
       .addCase(loginRequested.fulfilled, (state, action) => {
         state.isLoading = false;
         state.session = action.payload;
+        state.restoredSession = false;
         state.authView = "login";
         state.pendingVerification = null;
       })
@@ -114,6 +127,7 @@ const authSlice = createSlice({
         }
 
         state.session = action.payload;
+        state.restoredSession = false;
         state.authView = "login";
         state.pendingVerification = null;
         state.pendingGoogleProfile = null;
@@ -129,6 +143,7 @@ const authSlice = createSlice({
       .addCase(googleProfileCompleted.fulfilled, (state, action) => {
         state.isLoading = false;
         state.session = action.payload;
+        state.restoredSession = false;
         state.authView = "login";
         state.pendingGoogleProfile = null;
       })
@@ -181,6 +196,23 @@ const authSlice = createSlice({
         state.pendingVerification = null;
         state.pendingGoogleProfile = null;
         state.error = "";
+        state.isBootstrapping = false;
+        state.restoredSession = false;
+      })
+      .addCase(sessionRestoreRequested.pending, (state) => {
+        state.isBootstrapping = true;
+        state.error = "";
+      })
+      .addCase(sessionRestoreRequested.fulfilled, (state, action) => {
+        state.isBootstrapping = false;
+        state.session = action.payload;
+        state.restoredSession = Boolean(action.payload);
+        state.authView = "login";
+      })
+      .addCase(sessionRestoreRequested.rejected, (state) => {
+        state.isBootstrapping = false;
+        state.session = null;
+        state.restoredSession = false;
       });
   }
 });

@@ -9,11 +9,12 @@ import StatusBadge from "../../components/common/StatusBadge";
 import { reports } from "../../data/droneOpsData";
 import { hasClientPermission } from "../../features/auth/accessControl";
 import { useApiResource } from "../../hooks/useApiResource";
+import { useFleetSearch } from "../../hooks/useFleetSearch";
 import { droneOpsApi } from "../../services/droneOpsApi";
 import ReportProfileDialog from "./components/ReportProfileDialog";
 import { exportReportCollection } from "../../utils/reportExport";
 
-const Reports = ({ user }) => {
+const Reports = ({ user, searchValue = "" }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const actionsRef = useRef(null);
@@ -24,6 +25,7 @@ const Reports = ({ user }) => {
   const loadReports = useCallback(() => droneOpsApi.reports.list(), []);
   const { data: apiReports, error, isLoading, isFallback, refresh } = useApiResource(loadReports, reports);
   const normalizedReports = useMemo(() => apiReports.map(normalizeReport), [apiReports]);
+  const filteredReports = useFleetSearch(normalizedReports, searchValue);
   const metricReports = isFallback ? [] : normalizedReports;
   const routeReportId = useMemo(() => getDetailId(location.pathname, "/reports"), [location.pathname]);
   const canGenerateReports = hasClientPermission(user, "reports:read");
@@ -219,7 +221,7 @@ const Reports = ({ user }) => {
         />
         <DataTable
           columns={columns}
-          rows={normalizedReports}
+          rows={filteredReports}
           getRowKey={(report) => report.name}
           emptyMessage={isLoading ? "Loading reports..." : "No reports generated yet."}
         />
