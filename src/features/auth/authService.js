@@ -32,6 +32,12 @@ const persistSession = (session) => {
   return session;
 };
 
+const toPersistableUser = (user = {}) => {
+  // Flow metadata belongs to the current response, not the long-lived browser session.
+  const { emailChangePending, ...persistableUser } = user;
+  return persistableUser;
+};
+
 const clearSession = () => {
   localStorage.removeItem(SESSION_KEY);
 };
@@ -95,6 +101,19 @@ export const authService = {
       clearSession();
       return null;
     }
+  },
+
+  updateStoredUser(user) {
+    const session = this.getSession();
+    if (!session) return null;
+
+    return persistSession({
+      ...session,
+      user: decorateUser({
+        ...session.user,
+        ...toPersistableUser(user)
+      })
+    });
   },
 
   async login({ email, password }) {

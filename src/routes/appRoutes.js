@@ -78,7 +78,6 @@ export const appRoutes = [
     label: "Settings",
     description: "Operational thresholds, team access, notification rules, and integrations.",
     icon: Settings,
-    requiredPermission: "settings",
     component: SettingsPage,
     secondary: true
   }

@@ -50,8 +50,13 @@ export const droneOpsApi = {
   },
   users: {
     list: () => apiClient.get("/users"),
+    updateMe: (payload) => apiClient.put("/users/me", payload),
     update: (id, payload) => apiClient.put(`/users/${id}`, payload),
     remove: (id) => apiClient.delete(`/users/${id}`)
+  },
+  settings: {
+    alertThresholds: () => apiClient.get("/settings/alert-thresholds"),
+    updateAlertThresholds: (payload) => apiClient.put("/settings/alert-thresholds", payload)
   },
   audit: {
     list: (params = {}) => {

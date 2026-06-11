@@ -1,6 +1,14 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { authService } from "./authService";
 
+const friendlyAuthError = (message, fallback) => {
+  if (!message) return fallback;
+  if (message === "Google sign-in token could not be verified") {
+    return "Google sign-in could not be verified. Check that the frontend and backend use the same Google Client ID, then restart the app.";
+  }
+  return message;
+};
+
 export const loginRequested = createAsyncThunk("auth/loginRequested", async (credentials, { rejectWithValue }) => {
   try {
     return await authService.login(credentials);
@@ -91,6 +99,10 @@ const authSlice = createSlice({
       state.error = "";
       state.isBootstrapping = false;
       state.restoredSession = false;
+    },
+    sessionUserUpdated(state, action) {
+      if (!state.session) return;
+      state.session.user = action.payload;
     }
   },
   extraReducers: (builder) => {
@@ -134,7 +146,7 @@ const authSlice = createSlice({
       })
       .addCase(googleLoginRequested.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload ?? "Google sign-in failed";
+        state.error = friendlyAuthError(action.payload, "Google sign-in failed");
       })
       .addCase(googleProfileCompleted.pending, (state) => {
         state.isLoading = true;
@@ -149,7 +161,7 @@ const authSlice = createSlice({
       })
       .addCase(googleProfileCompleted.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload ?? "Google profile completion failed";
+        state.error = friendlyAuthError(action.payload, "Google profile completion failed");
       })
       .addCase(signupRequested.pending, (state) => {
         state.isLoading = true;
@@ -219,7 +231,8 @@ const authSlice = createSlice({
 
 export const {
   authViewChanged,
-  loggedOut
+  loggedOut,
+  sessionUserUpdated
 } = authSlice.actions;
 
 export default authSlice.reducer;

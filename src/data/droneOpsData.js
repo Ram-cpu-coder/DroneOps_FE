@@ -238,16 +238,6 @@ export const reports = [
 ];
 
 export const settings = {
-  thresholds: [
-    { label: "Minimum landing battery", value: "24%" },
-    { label: "Maximum wind speed", value: "34 km/h" },
-    { label: "Low signal warning", value: "70%" }
-  ],
-  integrations: [
-    { name: "PostgreSQL API", status: "Planned", note: "Connect after backend endpoints are ready" },
-    { name: "Weather feed", status: "Mocked", note: "Used for mission risk and incident rules" },
-    { name: "Map provider", status: "Mocked", note: "Replace visual panel with GIS provider later" }
-  ],
   roles: [
     { role: "Operations Lead", access: "Full fleet, mission, incident, report access" },
     { role: "Pilot", access: "Assigned missions, telemetry, incident notes" },
