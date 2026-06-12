@@ -371,6 +371,20 @@ const searchText = (values) => values.filter(Boolean).join(" ").toLowerCase();
 const itemMatches = (values, query) => searchText(values).includes(query);
 
 const safeRows = (rows) => (Array.isArray(rows) ? rows : []);
+const globalSearchCache = new Map();
+const GLOBAL_SEARCH_CACHE_MS = 30000;
+
+const loadCachedSearchRows = async (key, loader) => {
+  const cached = globalSearchCache.get(key);
+
+  if (cached && Date.now() - cached.timestamp < GLOBAL_SEARCH_CACHE_MS) {
+    return cached.rows;
+  }
+
+  const rows = await loader().catch(() => []);
+  globalSearchCache.set(key, { rows, timestamp: Date.now() });
+  return rows;
+};
 
 const loadGlobalSearchResults = async ({ query, routes, canRead }) => {
   const routeResults = routes
@@ -462,7 +476,7 @@ const loadGlobalSearchResults = async ({ query, routes, canRead }) => {
     loaders
       .filter((loader) => loader.enabled)
       .map(async (loader) => {
-        const rows = await loader.load().catch(() => []);
+        const rows = await loadCachedSearchRows(loader.type, loader.load);
         return safeRows(rows)
           .filter((row) => itemMatches(loader.values(row), query))
           .slice(0, 4)

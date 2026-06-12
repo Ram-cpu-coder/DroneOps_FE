@@ -1,6 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001/api/v1";
 
 const SESSION_KEY = "droneops_session";
+const inFlightGetRequests = new Map();
 
 const getSession = () => {
   const rawSession = localStorage.getItem(SESSION_KEY);
@@ -24,6 +25,7 @@ const shouldNotifyActivityChange = (method = "GET", path = "") => {
   const ignoredPaths = [
     "/auth/login",
     "/auth/google",
+    "/auth/google/complete-profile",
     "/auth/signup",
     "/auth/refresh-token",
     "/auth/forgot-password",
@@ -39,6 +41,21 @@ const notifyActivityChanged = (path, method) => {
   window.dispatchEvent(new CustomEvent("droneops:activity-changed", {
     detail: { path, method }
   }));
+};
+
+const formatValidationDetails = (details) => {
+  const fieldErrors = details?.fieldErrors;
+  if (!fieldErrors || typeof fieldErrors !== "object") return "";
+
+  return Object.entries(fieldErrors)
+    .flatMap(([field, messages]) => {
+      if (!Array.isArray(messages) || !messages.length) return [];
+      const label = field
+        .replace(/([A-Z])/g, " $1")
+        .replace(/^./, (value) => value.toUpperCase());
+      return messages.map((message) => `${label}: ${message}`);
+    })
+    .join(" ");
 };
 
 const refreshAccessToken = async () => {
@@ -105,15 +122,37 @@ const request = async (path, options = {}, retry = true) => {
       }
     }
 
-    throw new Error(payload.message || `Request failed: ${response.status}`);
+    const validationMessage = payload.code === "VALIDATION_ERROR" ? formatValidationDetails(payload.details) : "";
+    throw new Error(validationMessage || payload.message || `Request failed: ${response.status}`);
   }
 
   notifyActivityChanged(path, method);
   return payload.data ?? payload;
 };
 
+const getRequestKey = (path) => {
+  const token = getAccessToken();
+  return `${token ? token.slice(-16) : "anonymous"}:${path}`;
+};
+
+const get = (path) => {
+  const requestKey = getRequestKey(path);
+  const existingRequest = inFlightGetRequests.get(requestKey);
+
+  if (existingRequest) {
+    return existingRequest;
+  }
+
+  const nextRequest = request(path).finally(() => {
+    inFlightGetRequests.delete(requestKey);
+  });
+
+  inFlightGetRequests.set(requestKey, nextRequest);
+  return nextRequest;
+};
+
 export const apiClient = {
-  get: (path) => request(path),
+  get,
   post: (path, body) => request(path, { method: "POST", body }),
   put: (path, body) => request(path, { method: "PUT", body }),
   delete: (path) => request(path, { method: "DELETE" }),

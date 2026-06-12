@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Eye, EyeOff, ImagePlus, UserPlus } from "lucide-react";
+import { Check, Eye, EyeOff, ImagePlus, UserPlus } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 import { userRoles } from "../../data/authData";
 import { authService } from "../../features/auth/authService";
+
+const publicSignupRoles = userRoles.filter((role) => role.id !== "system_administrator");
 
 const passwordRules = [
   { id: "length", label: "At least 8 characters", test: (value) => value.length >= 8 },
@@ -96,7 +98,7 @@ const Signup = ({ error, isLoading, onSignup, onAuthViewChange }) => {
         <div className="password-rules" aria-live="polite">
           {passwordStatus.map((rule) => (
             <span key={rule.id} className={rule.isValid ? "is-valid" : ""}>
-              {rule.isValid ? "OK" : "--"} {rule.label}
+              {rule.isValid ? <Check size={13} strokeWidth={3} /> : <i aria-hidden="true" />} {rule.label}
             </span>
           ))}
         </div>
@@ -116,7 +118,7 @@ const Signup = ({ error, isLoading, onSignup, onAuthViewChange }) => {
             onChange={(event) => setForm({ ...form, role: event.target.value })}
             aria-label="Select role"
           >
-            {userRoles.map((role) => (
+            {publicSignupRoles.map((role) => (
               <option key={role.id} value={role.id}>{role.label}</option>
             ))}
           </select>

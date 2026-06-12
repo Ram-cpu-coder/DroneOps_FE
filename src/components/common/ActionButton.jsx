@@ -18,10 +18,10 @@ const ActionButton = ({
       aria-busy={isLoading}
       {...buttonProps}
     >
-      {isLoading && iconPosition === "start" && <LoadingLogo label="Loading" size="xs" compact />}
+      {isLoading && iconPosition === "start" && <LoadingLogo label="Loading" size="btn" compact />}
       {!isLoading && Icon && iconPosition === "start" && <Icon size={17} />}
       {children}
-      {isLoading && iconPosition === "end" && <LoadingLogo label="Loading" size="xs" compact />}
+      {isLoading && iconPosition === "end" && <LoadingLogo label="Loading" size="btn" compact />}
       {!isLoading && Icon && iconPosition === "end" && <Icon size={17} />}
     </button>
   );

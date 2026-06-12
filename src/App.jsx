@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "./components/layouts/AppLayout";
@@ -45,6 +45,7 @@ const App = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const restoredRouteHandledRef = useRef(false);
+  const authRouteInitializedRef = useRef(false);
   const { session, authView, pendingVerification, pendingGoogleProfile, error, passwordReset, isLoading, isBootstrapping, restoredSession } = useSelector((state) => state.auth);
   const { activeRoute, globalSearch, pendingRouteAction, themeMode } = useSelector((state) => state.ui);
 
@@ -82,18 +83,32 @@ const App = () => {
     if (isBootstrapping) return;
 
     if (!session?.user) {
-      const nextAuthView = authPathToView[location.pathname] ?? authView;
-      const nextAuthPath = authViewToPath[nextAuthView] ?? "/login";
+      const pathAuthView = authPathToView[location.pathname];
 
-      if (nextAuthView !== authView) {
-        dispatch(authViewChanged(nextAuthView));
+      if (!authRouteInitializedRef.current) {
+        authRouteInitializedRef.current = true;
+        const initialAuthView = pathAuthView ?? authView;
+        const initialAuthPath = authViewToPath[initialAuthView] ?? "/login";
+
+        if (initialAuthView !== authView) {
+          dispatch(authViewChanged(initialAuthView));
+        }
+
+        if (location.pathname !== initialAuthPath) {
+          navigate(initialAuthPath, { replace: true });
+        }
+
+        return;
       }
 
+      const nextAuthPath = authViewToPath[authView] ?? "/login";
       if (location.pathname !== nextAuthPath) {
         navigate(nextAuthPath, { replace: true });
       }
       return;
     }
+
+    authRouteInitializedRef.current = false;
 
     const nextRoute = currentAppRoute ?? firstAccessibleRoute(session.user, appRoutes);
     if (!nextRoute) return;
@@ -232,13 +247,15 @@ const App = () => {
       onLogout={handleLogout}
     >
       {ActivePage && (
-        <ActivePage
-          searchValue={globalSearch}
-          onNavigate={handleNavigate}
-          pendingRouteAction={pendingRouteAction}
-          onRouteActionHandled={() => dispatch(routeActionCleared())}
-          user={session.user}
-        />
+        <Suspense fallback={<div className="page-loading-panel"><LoadingLogo label="Loading workspace" /></div>}>
+          <ActivePage
+            searchValue={globalSearch}
+            onNavigate={handleNavigate}
+            pendingRouteAction={pendingRouteAction}
+            onRouteActionHandled={() => dispatch(routeActionCleared())}
+            user={session.user}
+          />
+        </Suspense>
       )}
     </AppLayout>
   );

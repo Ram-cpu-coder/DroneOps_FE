@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BriefcaseBusiness } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 import { userRoles } from "../../data/authData";
@@ -16,13 +16,23 @@ const GoogleProfileSetup = ({ pendingGoogleProfile, error, isLoading, onComplete
     role: "operations_manager"
   });
 
+  useEffect(() => {
+    if (!initialOrganization) return;
+    setForm((current) => (
+      current.organization
+        ? current
+        : { ...current, organization: initialOrganization }
+    ));
+  }, [initialOrganization]);
+
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (isLoading || !pendingGoogleProfile?.credential) return;
+    if (isLoading || !pendingGoogleProfile?.credential || !form.organization.trim()) return;
 
     onComplete({
       credential: pendingGoogleProfile.credential,
-      ...form
+      ...form,
+      organization: form.organization.trim()
     });
   };
 
@@ -61,7 +71,13 @@ const GoogleProfileSetup = ({ pendingGoogleProfile, error, isLoading, onComplete
           </select>
         </label>
       </fieldset>
-      <ActionButton icon={BriefcaseBusiness} variant="primary" type="submit" disabled={isLoading} isLoading={isLoading}>
+      <ActionButton
+        icon={BriefcaseBusiness}
+        variant="primary"
+        type="submit"
+        disabled={isLoading || !pendingGoogleProfile?.credential || !form.organization.trim()}
+        isLoading={isLoading}
+      >
         {isLoading ? "Creating access..." : "Create DroneOps access"}
       </ActionButton>
       <button type="button" className="text-button left" onClick={() => onAuthViewChange("login")}>

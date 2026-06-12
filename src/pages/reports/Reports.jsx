@@ -48,8 +48,8 @@ const Reports = ({ user, searchValue = "" }) => {
       }
     };
 
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
 
   useEffect(() => {
@@ -118,9 +118,9 @@ const Reports = ({ user, searchValue = "" }) => {
           title="Operational Reports"
           description="Stored operational snapshots generated from DroneOps data and ready for export."
           action={(
-            <div className="section-actions" ref={actionsRef}>
+            <div className="section-actions report-actions" ref={actionsRef}>
               {canGenerateReports && (
-                <div className="dashboard-filter-wrap">
+                <div className="dashboard-filter-wrap report-menu-wrap">
                   <ActionButton
                     icon={BarChart3}
                     onClick={() => {
@@ -131,7 +131,7 @@ const Reports = ({ user, searchValue = "" }) => {
                     Generate Report
                   </ActionButton>
                   {isGenerateOpen && (
-                    <div className="dashboard-filter-menu export-menu" role="menu" aria-label="Generate reports">
+                    <div className="dashboard-filter-menu export-menu report-generate-menu" role="menu" aria-label="Generate reports">
                       {generateOptions.map((option) => (
                         <button
                           key={option.value}
@@ -164,7 +164,7 @@ const Reports = ({ user, searchValue = "" }) => {
                   )}
                 </div>
               )}
-              <div className="dashboard-filter-wrap">
+              <div className="dashboard-filter-wrap report-menu-wrap">
                 <ActionButton
                   icon={Download}
                   variant="primary"
@@ -176,7 +176,7 @@ const Reports = ({ user, searchValue = "" }) => {
                   Export
                 </ActionButton>
                 {isExportOpen && (
-                  <div className="dashboard-filter-menu export-menu" role="menu" aria-label="Export reports">
+                  <div className="dashboard-filter-menu export-menu report-export-menu" role="menu" aria-label="Export reports">
                     <button type="button" onClick={async () => {
                       try {
                         await exportReportCollection(normalizedReports, "excel");
