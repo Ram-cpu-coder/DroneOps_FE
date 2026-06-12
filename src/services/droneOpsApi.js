@@ -1,6 +1,9 @@
 import { apiClient } from "./apiClient";
 
 export const droneOpsApi = {
+  dashboard: {
+    overview: () => apiClient.get("/dashboard/overview")
+  },
   drones: {
     list: () => apiClient.get("/drones"),
     create: (payload) => apiClient.post("/drones", payload),

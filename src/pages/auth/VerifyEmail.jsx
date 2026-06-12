@@ -1,16 +1,25 @@
-import { MailCheck } from "lucide-react";
+import { CheckCircle2, MailCheck } from "lucide-react";
 import ActionButton from "../../components/common/ActionButton";
 
 const VerifyEmail = ({ pendingUser, emailSent, emailError, canUseLocalVerification, onVerify, onAuthViewChange }) => {
   return (
-    <div className="auth-form">
+    <div className="auth-form verify-email-form">
       <div>
         <h2>Email verification</h2>
         <p>We sent a secure verification link to your email. Open it once, then come back and log in.</p>
       </div>
       <div className="verification-card">
-        <strong>{emailSent ? "Check your inbox" : "Verification is ready"}</strong>
-        <span>{pendingUser?.email}</span>
+        <div className="verification-icon">
+          <CheckCircle2 size={26} />
+        </div>
+        <div className="verification-content">
+          <strong>Account created successfully</strong>
+          <p>Verification is required before portal access is enabled.</p>
+        </div>
+        <div className="verification-destination">
+          <span>{emailSent ? "Verification link sent to" : "Verification is ready for"}</span>
+          <strong>{pendingUser?.email}</strong>
+        </div>
         {!emailSent && emailError && (
           <small>Email delivery needs SMTP review. You can still use local verification while developing.</small>
         )}

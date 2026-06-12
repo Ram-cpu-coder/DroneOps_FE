@@ -6,6 +6,15 @@ const friendlyAuthError = (message, fallback) => {
   if (message === "Google sign-in token could not be verified") {
     return "Google sign-in could not be verified. Check that the frontend and backend use the same Google Client ID, then restart the app.";
   }
+  if (message === "Email verification required") {
+    return "Verify your DroneOps account email before signing in. Google cannot bypass account verification.";
+  }
+  if (message === "No DroneOps account found for this email") {
+    return "No DroneOps account is registered with this email. Create an account first.";
+  }
+  if (message === "Verify your email before resetting password") {
+    return "This account is not verified yet. Verify your email before resetting the password.";
+  }
   return message;
 };
 

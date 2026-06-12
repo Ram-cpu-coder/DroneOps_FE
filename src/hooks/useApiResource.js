@@ -1,9 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export const useApiResource = (loader, fallbackData = []) => {
-  const [data, setData] = useState(Array.isArray(fallbackData) ? [] : null);
+const resourceCache = new Map();
+
+export const clearApiResourceCache = (cacheKey) => {
+  if (cacheKey) {
+    resourceCache.delete(cacheKey);
+    return;
+  }
+
+  resourceCache.clear();
+};
+
+export const useApiResource = (loader, fallbackData = [], options = {}) => {
+  const { cacheKey, staleMs = 0, enabled = true } = options;
+  const cachedEntry = cacheKey ? resourceCache.get(cacheKey) : null;
+  const isCacheFresh = Boolean(cachedEntry && staleMs > 0 && Date.now() - cachedEntry.timestamp < staleMs);
+  const [data, setData] = useState(() => (isCacheFresh ? cachedEntry.data : (Array.isArray(fallbackData) ? [] : null)));
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => enabled && !isCacheFresh);
   const [isFallback, setIsFallback] = useState(false);
   const fallbackRef = useRef(fallbackData);
 
@@ -26,25 +40,39 @@ export const useApiResource = (loader, fallbackData = []) => {
   }, [fallbackData]);
 
   const refresh = useCallback(async () => {
+    if (!enabled) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError("");
 
     try {
       const result = await loadWithColdStartRetry();
-      setData(result ?? fallbackRef.current);
+      const nextData = result ?? fallbackRef.current;
+      setData(nextData);
+      if (cacheKey) {
+        resourceCache.set(cacheKey, { data: nextData, timestamp: Date.now() });
+      }
       setIsFallback(false);
     } catch (requestError) {
-      setData(fallbackRef.current);
+      if (cachedEntry) {
+        setData(cachedEntry.data);
+      } else {
+        setData(fallbackRef.current);
+      }
       setIsFallback(true);
       setError(requestError.message);
     } finally {
       setIsLoading(false);
     }
-  }, [loader]);
+  }, [cacheKey, cachedEntry, enabled, loader]);
 
   useEffect(() => {
+    if (isCacheFresh) return;
     refresh();
-  }, [refresh]);
+  }, [isCacheFresh, refresh]);
 
   return { data, error, isLoading, isFallback, refresh, setData };
 };

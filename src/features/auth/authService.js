@@ -163,7 +163,7 @@ export const authService = {
       password: payload.password,
       organisationName: payload.organization,
       industry: payload.industry,
-      profileImageUrl: payload.profileImageUrl,
+      profileImageUrl: payload.profileImageUrl || undefined,
       role: apiRoleByRoleId[payload.role] ?? "OPERATIONS_MANAGER"
     });
 

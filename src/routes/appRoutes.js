@@ -1,3 +1,4 @@
+import { lazy } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -8,13 +9,14 @@ import {
   Settings,
   Users
 } from "lucide-react";
-import Dashboard from "../pages/dashboard/Dashboard";
-import Fleet from "../pages/fleet/Fleet";
-import Missions from "../pages/missions/Missions";
-import Incidents from "../pages/incidents/Incidents";
-import Reports from "../pages/reports/Reports";
-import SettingsPage from "../pages/settings/Settings";
-import UserManagement from "../pages/users/UserManagement";
+
+const Dashboard = lazy(() => import("../pages/dashboard/Dashboard"));
+const Fleet = lazy(() => import("../pages/fleet/Fleet"));
+const Missions = lazy(() => import("../pages/missions/Missions"));
+const Incidents = lazy(() => import("../pages/incidents/Incidents"));
+const Reports = lazy(() => import("../pages/reports/Reports"));
+const SettingsPage = lazy(() => import("../pages/settings/Settings"));
+const UserManagement = lazy(() => import("../pages/users/UserManagement"));
 
 export const appRoutes = [
   {

@@ -1,8 +1,4 @@
 import { saveAs } from "./saveFile";
-import * as XLSX from "xlsx";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 
 const normalizeSnapshot = (report) => {
   if (report?.dataSnapshot && typeof report.dataSnapshot === "object") {
@@ -66,7 +62,21 @@ export const exportReportCollection = async (reports, format) => {
   if (format === "word") return exportCollectionWord(reports);
 };
 
-const exportReportExcel = (report) => {
+const loadSpreadsheetExport = async () => import("xlsx");
+
+const loadPdfExport = async () => {
+  const [{ jsPDF }, autoTableModule] = await Promise.all([
+    import("jspdf"),
+    import("jspdf-autotable")
+  ]);
+
+  return { jsPDF, autoTable: autoTableModule.default };
+};
+
+const loadWordExport = async () => import("docx");
+
+const exportReportExcel = async (report) => {
+  const XLSX = await loadSpreadsheetExport();
   const rows = toRows(report);
   const worksheet = XLSX.utils.json_to_sheet(rows);
   const workbook = XLSX.utils.book_new();
@@ -75,7 +85,8 @@ const exportReportExcel = (report) => {
   saveAs(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${safeFileName(report.name)}.xlsx`);
 };
 
-const exportCollectionExcel = (reports) => {
+const exportCollectionExcel = async (reports) => {
+  const XLSX = await loadSpreadsheetExport();
   const rows = reports.map((report) => ({
     Report: report.name,
     Type: report.type ?? "Snapshot",
@@ -92,7 +103,8 @@ const exportCollectionExcel = (reports) => {
   saveAs(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "droneops-reports.xlsx");
 };
 
-const exportReportPdf = (report) => {
+const exportReportPdf = async (report) => {
+  const { jsPDF, autoTable } = await loadPdfExport();
   const doc = new jsPDF();
   doc.setFontSize(18);
   doc.text(report.name, 14, 18);
@@ -111,7 +123,8 @@ const exportReportPdf = (report) => {
   doc.save(`${safeFileName(report.name)}.pdf`);
 };
 
-const exportCollectionPdf = (reports) => {
+const exportCollectionPdf = async (reports) => {
+  const { jsPDF, autoTable } = await loadPdfExport();
   const doc = new jsPDF();
   doc.setFontSize(18);
   doc.text("DroneOps Reports", 14, 18);
@@ -134,6 +147,7 @@ const exportCollectionPdf = (reports) => {
 };
 
 const exportReportWord = async (report) => {
+  const { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } = await loadWordExport();
   const rows = toRows(report);
   const doc = new Document({
     sections: [
@@ -173,6 +187,7 @@ const exportReportWord = async (report) => {
 };
 
 const exportCollectionWord = async (reports) => {
+  const { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } = await loadWordExport();
   const doc = new Document({
     sections: [
       {

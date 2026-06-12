@@ -11,8 +11,8 @@ const DataTable = ({ columns, rows, getRowKey, emptyMessage = "No records found.
         </thead>
         <tbody>
           {rows.length === 0 && (
-            <tr>
-              <td colSpan={columns.length}>{emptyMessage}</td>
+            <tr className="table-empty-row">
+              <td className="table-empty-cell" colSpan={columns.length}>{emptyMessage}</td>
             </tr>
           )}
           {rows.map((row, index) => (
